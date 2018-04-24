@@ -2,7 +2,9 @@ ChannelSplit 1.0.0.0
 
 Useage (-options) arg1-argx
 
-Args may be individual image, files, argument files,directories or web url, zipfiles if chosen or individual files will be placed in the same folder as original image
+Args may be individual image, files, argument files,directories or web url
+
+zipfiles if chosen or individual files will be placed in the same folder as original image
 
 --- OPTIONS ---
 
