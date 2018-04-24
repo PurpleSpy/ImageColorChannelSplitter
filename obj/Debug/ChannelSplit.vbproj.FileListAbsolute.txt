@@ -8,4 +8,3 @@ J:\visual studio 2017\projects 17\ChannelSplit\ChannelSplit\obj\Debug\ChannelSpl
 J:\visual studio 2017\projects 17\ChannelSplit\ChannelSplit\obj\Debug\ChannelSplit.exe
 J:\visual studio 2017\projects 17\ChannelSplit\ChannelSplit\obj\Debug\ChannelSplit.xml
 J:\visual studio 2017\projects 17\ChannelSplit\ChannelSplit\obj\Debug\ChannelSplit.pdb
-J:\visual studio 2017\projects 17\ChannelSplit\ChannelSplit\obj\Debug\ChannelSplit.vbprojResolveAssemblyReference.cache

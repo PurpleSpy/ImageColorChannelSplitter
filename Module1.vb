@@ -98,8 +98,18 @@
                     processCommandLineargs(stp.ToArray(GetType(String)))
                     Exit Sub
                 End If
-            Catch ex As Exception
 
+                If Windows.Forms.Clipboard.ContainsText And args(0).IndexOf("-") = 0 And args(0).IndexOf("C") > -1 Then
+                    Dim cliptext As String = Windows.Forms.Clipboard.GetText
+                    If cliptext.ToUpper.IndexOf("BASE64") > -1 Then
+                        Dim datastart As String = cliptext.Substring(cliptext.IndexOf(","))
+                        Dim bstring As Byte() = Convert.FromBase64CharArray(datastart, 0, datastart.Length - 1)
+                        Dim stxp As New IO.MemoryStream(bstring)
+                        Dim mimetype As SortedList = getMime(stxp)
+                    End If
+                End If
+            Catch ex As Exception
+                Exit Sub
             End Try
 
             For Each itm As String In allowstring
@@ -299,6 +309,7 @@
         Console.WriteLine(My.Application.Info.AssemblyName & " " & My.Application.Info.Version.ToString)
         Console.WriteLine("Useage (-options) arg1-argx ")
         Console.WriteLine("Args may be individual image, files, argument files,directories or web url, zipfiles if chosen or individual files will be placed in the same folder as original image")
+        Console.WriteLine("Images that were downloaded from url and clipboard images will be saved to " & My.Application.Info.DirectoryPath & "\imgdownloads")
         Console.WriteLine("--- OPTIONS ---")
         Console.WriteLine("-a Copies Alpha Channel")
         Console.WriteLine("-A Creates a color overlay in the color chosen")
