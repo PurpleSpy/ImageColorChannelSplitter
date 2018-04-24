@@ -67,3 +67,5 @@ Ex: dir\n
 Ex: imageurl\n
 
 save text file as .arg and then load in program
+
+hsb and cmyk channels are currently buggy, still working to sort out, if doing more than 50 images at once, program will slow to a crawl.
