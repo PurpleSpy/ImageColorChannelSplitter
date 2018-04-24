@@ -4,7 +4,7 @@ Useage (-options) arg1-argx
 
 Args may be individual image, files, argument files,directories or web url, zipfiles if chosen or individual files will be placed in the same folder as original image
 
-Images that were downloaded from url and clipboard images will be saved to thisappdir\ChannelSplit\ChannelSplit\bin\Debug\imgdownloads
+Images that were downloaded from url and clipboard images will be saved to thisappdir\imgdownloads
 
 --- OPTIONS ---
 
