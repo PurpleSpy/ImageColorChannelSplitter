@@ -12,6 +12,9 @@
     Dim pixelcount As Long = 0
     Dim oldrunningthreads As Integer = 0
     Dim maxrunthreads As Integer = 0
+    Dim usethreshold As Boolean = False
+    Dim minthresh As Integer = 0
+    Dim maxthresh As Integer = 255
     Sub Main()
 
         AddHandler Console.CancelKeyPress, AddressOf controlcpressed
@@ -46,7 +49,7 @@
                 End If
 
                 If runningthreads <> oldrunningthreads Then
-                    Console.WriteLine("Progress : " & -1 * (Math.Floor((maxrunthreads - runningthreads) / maxrunthreads)) & "% images processed " & -1 * (maxrunthreads - runningthreads) & " of " & maxrunthreads)
+                    Console.WriteLine("Progress :  images processed " & (maxrunthreads - runningthreads) & " of " & maxrunthreads)
                     oldrunningthreads = runningthreads
                 End If
                 Threading.Thread.Sleep(250)
@@ -112,6 +115,9 @@
                 Exit Sub
             End Try
 
+
+
+
             For Each itm As String In allowstring
                 If exitthreads Then
                     Exit Sub
@@ -159,6 +165,9 @@
                         allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.inverted))
                     Case "o"
                         copyonlyoriginals = True
+                    Case "S"
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.threshold))
+
 
                 End Select
             Next
@@ -166,6 +175,21 @@
         End If
 
         For Each itm As String In args
+
+            Try
+                Dim ctx As Byte = Byte.Parse(itm)
+                If minthresh = 0 Then
+                    minthresh = ctx
+                    Continue For
+                End If
+                If maxthresh = 255 Then
+                    maxthresh = ctx
+                    Continue For
+                End If
+            Catch ex As Exception
+
+            End Try
+
             While My.Application.Info.WorkingSet / Math.Pow(1024, 3) > 1.5
                 Threading.Thread.Sleep(200)
             End While
@@ -295,7 +319,7 @@
         saturation
         brightness
         hue
-
+        threshold
 
     End Enum
 
@@ -337,8 +361,10 @@
         Console.WriteLine("-i invert image color")
         Console.WriteLine("-o on downloaded images, copys only downloaded original")
         Console.WriteLine("-C use image stored in clipboard")
+        Console.WriteLine("-S takes a sample of image with threshold 0-255, add to the program arguments, first will set min thresh and second will set to max thresh")
         Console.WriteLine("Misc ----")
         Console.WriteLine()
+        Console.WriteLine("EX:threshold example -S 100 250 image.jpg")
         Console.WriteLine("EX: " & My.Application.Info.AssemblyName & " -AcR image.jpg ""C:\imgdir"" ....")
         Console.WriteLine("Argument files are just a list of files in a text file, so it would be file,url,or directory then \n, no options amy be specifed in argument file")
         Console.WriteLine("Ex: how to make argument file")
@@ -656,6 +682,8 @@
                     Dim colorwhitebalance As Drawing.Color = convertToWhiteBalance(cpix)
                     Dim colorhue As Drawing.Color = getColorOFHUE(cpix.GetHue)
                     Dim invertedpix As Drawing.Color = convertToinvert(cpix)
+
+
                     Select Case chanselect
                         Case ColorChannels.alpha
                             writecolor.SetPixel(x, y, Drawing.Color.FromArgb(255, cpix.A, cpix.A, cpix.A))
@@ -705,6 +733,22 @@
                             writecolor.SetPixel(x, y, IIf(Not usecoloralpha, colorhue, colorhue))
                         Case ColorChannels.inverted
                             writecolor.SetPixel(x, y, IIf(Not usecoloralpha, invertedpix, invertedpix))
+                        Case ColorChannels.threshold
+                            If maxthresh = 255 And minthresh = 0 Then
+                                imglist.Add(savename, Nothing)
+                                writecolor.Dispose()
+
+                                Exit Sub
+                            End If
+                            Dim bright As Integer = cpix.GetBrightness * 255
+                            If bright >= minthresh And bright <= maxthresh Then
+                                If Not usecoloralpha Then
+                                    writecolor.SetPixel(x, y, Drawing.Color.White)
+                                End If
+                            Else
+                                writecolor.SetPixel(x, y, Drawing.Color.Black)
+                            End If
+
                         Case Else
                             imglist.Add(savename, Nothing)
                             writecolor.Dispose()
