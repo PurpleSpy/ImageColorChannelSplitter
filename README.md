@@ -4,7 +4,7 @@ Useage (-options) arg1-argx
 
 Args may be individual image, files, argument files,directories or web url, zipfiles if chosen or individual files will be placed in the same folder as original image
 
-Images that were downloaded from url and clipboard images will be saved to thisappdir\imgdownloads
+Images that were downloaded from url and clipboard images will be saved to thisprogramdir\imgdownloads
 
 --- OPTIONS ---
 
@@ -48,9 +48,13 @@ Images that were downloaded from url and clipboard images will be saved to thisa
 
 -C use image stored in clipboard
 
+-S takes a sample of image with threshold 0-255, add to the program arguments, first will set min thresh and second will set to max thresh
+
 Misc ----
 
 
+
+EX:threshold example -S 100 250 image.jpg
 
 EX: ChannelSplit -AcR image.jpg "C:\imgdir" ....
 
@@ -67,5 +71,3 @@ Ex: dir\n
 Ex: imageurl\n
 
 save text file as .arg and then load in program
-
-hsb and cmyk channels are currently buggy, still working to sort out, if doing more than 50 images at once, program will slow to a crawl.
