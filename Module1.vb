@@ -17,6 +17,7 @@
     Dim maxthresh As Integer = 255
     Dim usecolormatrix As Boolean = False
     Dim colorizeby As Drawing.Color = Drawing.Color.Black
+
     Sub Main()
 
         AddHandler Console.CancelKeyPress, AddressOf controlcpressed
@@ -36,11 +37,8 @@
             End If
 
             dostartercleanup()
+            Threading.ThreadPool.QueueUserWorkItem(AddressOf processCommandLineargs, My.Application.CommandLineArgs.ToArray)
 
-            Dim scr As New Threading.Thread(AddressOf processCommandLineargs)
-            Dim cbx As Object = My.Application.CommandLineArgs.ToArray
-
-            scr.Start(cbx)
 
             Threading.Thread.Sleep(2000)
             maxrunthreads = runningthreads
@@ -212,12 +210,6 @@
                 Continue For
             End If
 
-
-            While My.Application.Info.WorkingSet / Math.Pow(1024, 3) > 1.5
-                Threading.Thread.Sleep(200)
-            End While
-
-
             If IO.Directory.Exists(itm) Then
                 skipuricheck = True
                 Dim cdir As New IO.DirectoryInfo(itm)
@@ -226,8 +218,8 @@
                         Case ".png", ".jpg", ".bmp"
                             If dfile.Exists Then
                                 Try
-                                    Dim gxr As New Threading.Thread(AddressOf splitImage)
-                                    gxr.Start(New Object() {dfile.FullName, allowonly, gnozip})
+
+                                    Threading.ThreadPool.QueueUserWorkItem(AddressOf splitImage, New Object() {dfile.FullName, allowonly, gnozip})
                                 Catch ex As Exception
 
                                 End Try
@@ -244,8 +236,8 @@
                 Select Case ctxo.Extension.ToLower
                     Case ".png", ".jpg", ".bmp"
                         Try
-                            Dim gxr As New Threading.Thread(AddressOf splitImage)
-                            gxr.Start(New Object() {itm, allowonly, gnozip})
+
+                            Threading.ThreadPool.QueueUserWorkItem(AddressOf splitImage, New Object() {itm, allowonly, gnozip})
                         Catch ex As Exception
 
                         End Try
@@ -262,6 +254,7 @@
                         Catch ex As Exception
 
                         End Try
+                        Continue For
                 End Select
 
 
@@ -300,8 +293,8 @@
                         Console.WriteLine(My.Application.Info.DirectoryPath & "\imgdownloads\" & outfilename & " created from url")
                         If Not copyonlyoriginals Then
 
-                            Dim gxr As New Threading.Thread(AddressOf splitImage)
-                            gxr.Start(New Object() {My.Application.Info.DirectoryPath & "\imgdownloads\" & outfilename, allowonly, gnozip})
+
+                            Threading.ThreadPool.QueueUserWorkItem(AddressOf splitImage, New Object() {My.Application.Info.DirectoryPath & "\imgdownloads\" & outfilename, allowonly, gnozip})
                         End If
                     Catch ex As Exception
                         Console.WriteLine("ERROR: " & ex.Message)
@@ -451,8 +444,8 @@
             cthread.Start(New Object() {imgtosplit.Clone, crk.Name.Replace(crk.Extension, "") & " " & GetType(ColorChannels).GetEnumName(eval) & ".png", eval, False, curimglist})
             If grabcoloralphas And Not usecolormatrix Then
                 roughimgcount += 1
-                Dim cthread2 As New Threading.Thread(AddressOf splitIntochannels)
-                cthread2.Start(New Object() {imgtosplit.Clone, crk.Name.Replace(crk.Extension, "") & " " & GetType(ColorChannels).GetEnumName(eval) & " coloralpha.png", eval, True, curimglist})
+
+                Threading.ThreadPool.QueueUserWorkItem(AddressOf splitIntochannels, New Object() {imgtosplit.Clone, crk.Name.Replace(crk.Extension, "") & " " & GetType(ColorChannels).GetEnumName(eval) & " coloralpha.png", eval, True, curimglist})
             End If
 
 
@@ -752,7 +745,10 @@
                                 Dim colorizered As Integer = IIf(cpixsat + colorizeby.R > 255, 255, cpixsat + colorizeby.R)
                                 Dim colorizegreen As Integer = IIf(cpixsat + colorizeby.G > 255, 255, cpixsat + colorizeby.G)
                                 Dim colorizeblue As Integer = IIf(cpixsat + colorizeby.B > 255, 255, cpixsat + colorizeby.B)
-                                writecolor.SetPixel(x, y, Drawing.Color.FromArgb(colorizered, colorizegreen, colorizeblue))
+                                dgui.DrawRectangle(New Drawing.Pen(Drawing.Color.FromArgb(colorizered, colorizegreen, colorizeblue)), x, y, 1, 1)
+                                dgui.DrawRectangle(New Drawing.Pen(Drawing.Color.FromArgb(255 - cpixsat, colorizeby)), x, y, 1, 1)
+
+
                             Else
                                 writecolor.SetPixel(x, y, Drawing.Color.FromArgb(255 - cpixsat, colorizeby))
                             End If
