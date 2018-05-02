@@ -15,6 +15,8 @@
     Dim usethreshold As Boolean = False
     Dim minthresh As Integer = 0
     Dim maxthresh As Integer = 255
+    Dim usecolormatrix As Boolean = False
+    Dim colorizeby As Drawing.Color = Drawing.Color.Black
     Sub Main()
 
         AddHandler Console.CancelKeyPress, AddressOf controlcpressed
@@ -124,7 +126,8 @@
                 End If
                 Select Case itm
 
-
+                    Case "M"
+                        usecolormatrix = True
 
                     Case "a"
                         allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.alpha))
@@ -132,6 +135,8 @@
                         grabcoloralphas = True
                     Case "c"
                         allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.cyan))
+                    Case "L"
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.colorize))
                     Case "m"
                         allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.magenta))
                     Case "y"
@@ -189,6 +194,24 @@
             Catch ex As Exception
 
             End Try
+
+            If itm.IndexOf("#") = 0 Then
+                If itm.Count = 7 Then
+                    Try
+                        Dim rval As Integer = Integer.Parse(itm.Substring(1, 2), Globalization.NumberStyles.HexNumber)
+                        Dim gval As Integer = Integer.Parse(itm.Substring(3, 2), Globalization.NumberStyles.HexNumber)
+                        Dim bval As Integer = Integer.Parse(itm.Substring(5, 2), Globalization.NumberStyles.HexNumber)
+                        colorizeby = Drawing.Color.FromArgb(rval, gval, bval)
+                    Catch ex As Exception
+
+                    End Try
+
+
+
+                End If
+                Continue For
+            End If
+
 
             While My.Application.Info.WorkingSet / Math.Pow(1024, 3) > 1.5
                 Threading.Thread.Sleep(200)
@@ -320,7 +343,7 @@
         brightness
         hue
         threshold
-
+        colorize
     End Enum
 
 
@@ -331,7 +354,7 @@
         Dim barra As New ArrayList
         Dim commanlist As String = "aAcmykrRgGbButTe"
         Console.WriteLine(My.Application.Info.AssemblyName & " " & My.Application.Info.Version.ToString)
-        Console.WriteLine("Useage (-options) arg1-argx ")
+        Console.WriteLine("Useage (-options) (hexcode) arg1-argx ")
         Console.WriteLine("Args may be individual image, files, argument files,directories or web url, zipfiles if chosen or individual files will be placed in the same folder as original image")
         Console.WriteLine("Images that were downloaded from url and clipboard images will be saved to " & My.Application.Info.DirectoryPath & "\imgdownloads")
         Console.WriteLine("--- OPTIONS ---")
@@ -358,10 +381,12 @@
             Console.WriteLine("-" & commanlist(i) & " Copies " & GetType(ColorChannels).GetEnumName(barra(i)) & " Channel")
         Next
         Console.WriteLine("-f copy files rather than zip them up")
+        Console.WriteLine("-L Colorizes an image with a color hexcode, only images after hexcode will be colorized, works best with darker colors light ones produce white pictures")
         Console.WriteLine("-i invert image color")
         Console.WriteLine("-o on downloaded images, copys only downloaded original")
         Console.WriteLine("-C use image stored in clipboard")
         Console.WriteLine("-S takes a sample of image with threshold 0-255, add to the program arguments, first will set min thresh and second will set to max thresh")
+        Console.WriteLine("-M Uses a color matrix, much faster to split the rgbblack channels and grayscale, no alpha channels versions available this way")
         Console.WriteLine("Misc ----")
         Console.WriteLine()
         Console.WriteLine("EX:threshold example -S 100 250 image.jpg")
@@ -417,10 +442,14 @@
 
             Dim cthread As New Threading.Thread(AddressOf splitIntochannels)
 
+            If usecolormatrix Then
+                cthread = New Threading.Thread(AddressOf splitIntoChannelsWithMatrix)
+            End If
+
             Console.WriteLine("Processing " & crk.Name.Replace(crk.Extension, "") & "  " & GetType(ColorChannels).GetEnumName(eval) & " &  alphachannels")
             roughimgcount += 1
             cthread.Start(New Object() {imgtosplit.Clone, crk.Name.Replace(crk.Extension, "") & " " & GetType(ColorChannels).GetEnumName(eval) & ".png", eval, False, curimglist})
-            If grabcoloralphas Then
+            If grabcoloralphas And Not usecolormatrix Then
                 roughimgcount += 1
                 Dim cthread2 As New Threading.Thread(AddressOf splitIntochannels)
                 cthread2.Start(New Object() {imgtosplit.Clone, crk.Name.Replace(crk.Extension, "") & " " & GetType(ColorChannels).GetEnumName(eval) & " coloralpha.png", eval, True, curimglist})
@@ -549,24 +578,7 @@
         Return Drawing.Color.FromArgb(rgba.A, redcolor, bluecolor, greencolor)
     End Function
 
-    Function convertToGrayscale(rgba As Drawing.Color) As Drawing.Color
 
-        Dim adjpercent As Double = 0.49
-        Dim redcolor As Double = (rgba.R * (adjpercent - 0.2126))
-        Dim bluecolor As Double = (rgba.B * (adjpercent - 0.0722))
-        Dim greencolor As Double = (rgba.G * (adjpercent - 0.0752))
-        Dim finalcolor As Double = redcolor + bluecolor + greencolor
-
-        If finalcolor > 255 Then
-            finalcolor = 255
-        End If
-        If finalcolor < 0 Then
-            finalcolor = 0
-        End If
-        Return Drawing.Color.FromArgb(255, finalcolor, finalcolor, finalcolor)
-
-
-    End Function
 
     Function convertToWhiteBalance(rgba As Drawing.Color) As Drawing.Color
         Dim redaddj As Integer = 255 - rgba.R
@@ -678,7 +690,6 @@
                     End If
                     Dim cpix As Drawing.Color = pictosplit.GetPixel(x, y)
                     Dim colorcmyk As SortedList = convertToCMYKpercent(cpix)
-                    Dim bwcolor As Drawing.Color = convertToGrayscale(cpix)
                     Dim colorwhitebalance As Drawing.Color = convertToWhiteBalance(cpix)
                     Dim colorhue As Drawing.Color = getColorOFHUE(cpix.GetHue)
                     Dim invertedpix As Drawing.Color = convertToinvert(cpix)
@@ -723,12 +734,29 @@
 
                         Case ColorChannels.magenta
                             writecolor.SetPixel(x, y, IIf(Not usecoloralpha, Drawing.Color.FromArgb(255, colorcmyk("magenta"), colorcmyk("magenta"), colorcmyk("magenta")), Drawing.Color.FromArgb(colorcmyk("magenta"), 255, 0, 255)))
-                        Case ColorChannels.grayscale
-                            writecolor.SetPixel(x, y, IIf(Not usecoloralpha, bwcolor, Drawing.Color.FromArgb(bwcolor.R, 0, 0, 0)))
+
                         Case ColorChannels.saturation
                             writecolor.SetPixel(x, y, IIf(Not usecoloralpha, Drawing.Color.FromArgb(255, cpix.GetSaturation * 255, cpix.GetSaturation * 255, cpix.GetSaturation * 255), Drawing.Color.FromArgb(cpix.GetSaturation * 255, 0, 0, 0)))
-                        Case ColorChannels.brightness
+                        Case ColorChannels.brightness, ColorChannels.grayscale
                             writecolor.SetPixel(x, y, IIf(Not usecoloralpha, Drawing.Color.FromArgb(255, cpix.GetBrightness * 255, cpix.GetBrightness * 255, cpix.GetBrightness * 255), Drawing.Color.FromArgb(cpix.GetBrightness * 255, 0, 0, 0)))
+                        Case ColorChannels.colorize
+                            If colorizeby = Drawing.Color.Black Then
+                                imglist.Add(savename, Nothing)
+                                writecolor.Dispose()
+                                dgui.Dispose()
+                                Exit Sub
+                            End If
+                            Dim cpixsat As Integer = cpix.GetBrightness * 255
+
+                            If Not usecoloralpha Then
+                                Dim colorizered As Integer = IIf(cpixsat + colorizeby.R > 255, 255, cpixsat + colorizeby.R)
+                                Dim colorizegreen As Integer = IIf(cpixsat + colorizeby.G > 255, 255, cpixsat + colorizeby.G)
+                                Dim colorizeblue As Integer = IIf(cpixsat + colorizeby.B > 255, 255, cpixsat + colorizeby.B)
+                                writecolor.SetPixel(x, y, Drawing.Color.FromArgb(colorizered, colorizegreen, colorizeblue))
+                            Else
+                                writecolor.SetPixel(x, y, Drawing.Color.FromArgb(255 - cpixsat, colorizeby))
+                            End If
+
                         Case ColorChannels.hue
                             writecolor.SetPixel(x, y, IIf(Not usecoloralpha, colorhue, colorhue))
                         Case ColorChannels.inverted
@@ -752,13 +780,14 @@
                         Case Else
                             imglist.Add(savename, Nothing)
                             writecolor.Dispose()
-
+                            dgui.Dispose()
                             Exit Sub
 
                     End Select
 
                 Next
             Next
+            dgui.Dispose()
         End Using
 
         Try
@@ -776,6 +805,73 @@
             imglist.Add(savename, Nothing)
         End Try
 
+    End Sub
+
+    Sub splitIntoChannelsWithMatrix(cob As Object)
+        Dim pictosplit As Drawing.Bitmap = cob(0)
+        Dim savename As String = cob(1)
+        Dim chanselect As ColorChannels = cob(2)
+        Dim usecoloralpha As Boolean = cob(3)
+        Dim imglist As SortedList = cob(4)
+        Dim alphadetected As Boolean = False
+        Dim writecolor As New Drawing.Bitmap(pictosplit.Width, pictosplit.Height)
+        Dim tfile As String = getRealTempfile()
+        Dim cmatrix As New Drawing.Imaging.ColorMatrix
+        Dim imgatt As New Drawing.Imaging.ImageAttributes
+
+        Using dgui As Drawing.Graphics = Drawing.Graphics.FromImage(writecolor)
+            Select Case chanselect
+
+                Case ColorChannels.redblack
+                    cmatrix.Matrix00 = 1
+                    cmatrix.Matrix11 = 0
+                    cmatrix.Matrix22 = 0
+
+                Case ColorChannels.greenblack
+                    cmatrix.Matrix00 = 0
+                    cmatrix.Matrix11 = 1
+                    cmatrix.Matrix22 = 0
+
+
+                Case ColorChannels.blueblack
+                    cmatrix.Matrix00 = 0
+                    cmatrix.Matrix11 = 0
+                    cmatrix.Matrix22 = 1
+
+                Case ColorChannels.grayscale, ColorChannels.brightness
+                    cmatrix.Matrix00 = 0.2627
+                    cmatrix.Matrix01 = 0.2627
+                    cmatrix.Matrix02 = 0.2627
+                    cmatrix.Matrix10 = 0.678
+                    cmatrix.Matrix11 = 0.678
+                    cmatrix.Matrix12 = 0.678
+                    cmatrix.Matrix20 = 0.0593
+                    cmatrix.Matrix21 = 0.0593
+                    cmatrix.Matrix22 = 0.0593
+                Case Else
+                    imglist.Add(savename, Nothing)
+                    writecolor.Dispose()
+                    dgui.Dispose()
+                    Exit Sub
+
+            End Select
+            imgatt.SetColorMatrix(cmatrix)
+            dgui.DrawImage(pictosplit, New Drawing.Rectangle(New Drawing.Point(0, 0), pictosplit.Size), 0, 0, pictosplit.Width, pictosplit.Height, Drawing.GraphicsUnit.Pixel, imgatt)
+        End Using
+        Try
+            pictosplit.Dispose()
+            Dim myEncoderParameters As New Drawing.Imaging.EncoderParameters(1)
+            Dim myEncoder As System.Drawing.Imaging.Encoder = System.Drawing.Imaging.Encoder.Quality
+            Dim myEncoderParameter As New System.Drawing.Imaging.EncoderParameter(myEncoder, 100&)
+            myEncoderParameters.Param(0) = myEncoderParameter
+            Dim pngencoder As Drawing.Imaging.ImageCodecInfo = GetEncoder(Drawing.Imaging.ImageFormat.Png)
+            writecolor.Save(tfile, pngencoder, myEncoderParameters)
+            writecolor.Dispose()
+            Console.WriteLine("Wrote " & savename)
+            imglist.Add(savename, tfile)
+        Catch ex As Exception
+            imglist.Add(savename, Nothing)
+        End Try
     End Sub
     Private Function GetEncoder(ByVal format As Drawing.Imaging.ImageFormat) As Drawing.Imaging.ImageCodecInfo
 
