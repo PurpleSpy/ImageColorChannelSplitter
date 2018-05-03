@@ -6,7 +6,6 @@
     Dim copyonlyoriginals As Boolean = False
     Dim gnozip As Boolean = False
     Dim listenport As Integer = 80
-    Dim exitthreads As Boolean = False
     Dim cwebserver As Net.HttpListener = Nothing
     Dim skipuricheck As Boolean = False
     Dim pixelcount As Long = 0
@@ -119,9 +118,7 @@
 
 
             For Each itm As String In allowstring
-                If exitthreads Then
-                    Exit Sub
-                End If
+
                 Select Case itm
 
                     Case "M"
@@ -170,7 +167,10 @@
                         copyonlyoriginals = True
                     Case "S"
                         allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.threshold))
-
+                    Case "F"
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.colorshift))
+                    Case "n"
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.linedraw))
 
                 End Select
             Next
@@ -313,9 +313,7 @@
 
 
     Sub controlcpressed(sender As Object, e As ConsoleCancelEventArgs)
-
-        exitthreads = True
-
+        Environment.Exit(0)
     End Sub
 
     Enum ColorChannels
@@ -337,6 +335,8 @@
         hue
         threshold
         colorize
+        colorshift
+        linedraw
     End Enum
 
 
@@ -374,17 +374,19 @@
             Console.WriteLine("-" & commanlist(i) & " Copies " & GetType(ColorChannels).GetEnumName(barra(i)) & " Channel")
         Next
         Console.WriteLine("-f copy files rather than zip them up")
-        Console.WriteLine("-L Colorizes an image with a color hexcode, only images after hexcode will be colorized, works best with darker colors light ones produce white pictures")
+        Console.WriteLine("-L Colorizes an image with a color hexcode, only images after hexcode will be colorized, works best with darker colors light ones produce white pictures, place hexcode in arguments")
+        Console.WriteLine("-F Shifts image color with a color filter , place hexcode in arguments, darker hexcodes work better light hexcodes produce white pictures")
         Console.WriteLine("-i invert image color")
         Console.WriteLine("-o on downloaded images, copys only downloaded original")
         Console.WriteLine("-C use image stored in clipboard")
         Console.WriteLine("-S takes a sample of image with threshold 0-255, add to the program arguments, first will set min thresh and second will set to max thresh")
+        Console.WriteLine("-n uses edge detection and makes a bad fax or pencil drawing")
         Console.WriteLine("-M Uses a color matrix, much faster to split the rgbblack channels and grayscale, no alpha channels versions available this way")
         Console.WriteLine("Misc ----")
         Console.WriteLine()
         Console.WriteLine("EX:threshold example -S 100 250 image.jpg")
         Console.WriteLine("EX: " & My.Application.Info.AssemblyName & " -AcR image.jpg ""C:\imgdir"" ....")
-        Console.WriteLine("Argument files are just a list of files in a text file, so it would be file,url,or directory then \n, no options amy be specifed in argument file")
+        Console.WriteLine("Argument files are just a list of files in a text file, so it would be file,url,or directory then \n, no options any be specifed in argument file")
         Console.WriteLine("Ex: how to make argument file")
         Console.WriteLine("Ex: open new text then fill it with one arg per line, no options")
         Console.WriteLine("Ex: image.jpg\n")
@@ -451,14 +453,12 @@
 
         Next
 
-        While ((curimglist.Count <> roughimgcount) Or (roughimgcount = 1)) And Not exitthreads
+        While ((curimglist.Count <> roughimgcount) Or (roughimgcount = 1))
             Threading.Thread.Sleep(250)
         End While
 
 
-
-
-        If curimglist.Count > 1 And Not exitthreads Then
+        If curimglist.Count > 1 Then
             If Not nozip Then
                 Console.WriteLine("Writing " & crk.Name.Replace(crk.Extension, "") & "Zip")
                 Using pzip As New IO.FileStream(crk.FullName.Replace(crk.Extension, ".zip"), IO.FileMode.Create)
@@ -668,7 +668,7 @@
         Dim alphadetected As Boolean = False
         Dim writecolor As New Drawing.Bitmap(pictosplit.Width, pictosplit.Height)
         Dim tfile As String = getRealTempfile()
-
+        Dim blackcount As Integer = 0
         Using dgui As Drawing.Graphics = Drawing.Graphics.FromImage(writecolor)
             If usecoloralpha Then
                 writecolor.MakeTransparent()
@@ -678,9 +678,7 @@
 
             For y As Integer = 0 To pictosplit.Height - 1
                 For x As Integer = 0 To pictosplit.Width - 1
-                    If exitthreads Then
-                        Exit Sub
-                    End If
+
                     Dim cpix As Drawing.Color = pictosplit.GetPixel(x, y)
                     Dim colorcmyk As SortedList = convertToCMYKpercent(cpix)
                     Dim colorwhitebalance As Drawing.Color = convertToWhiteBalance(cpix)
@@ -692,8 +690,14 @@
                         Case ColorChannels.alpha
                             writecolor.SetPixel(x, y, Drawing.Color.FromArgb(255, cpix.A, cpix.A, cpix.A))
 
-                            If cpix.A > 0 Then
-                                alphadetected = True
+                            If cpix.A = 0 Then
+                                blackcount += 1
+                            End If
+                            If blackcount / (pictosplit.Height * pictosplit.Width) >= 1 Then
+                                imglist.Add(savename, Nothing)
+                                writecolor.Dispose()
+                                dgui.Dispose()
+                                Exit Sub
                             End If
                         Case ColorChannels.redblack
                             writecolor.SetPixel(x, y, IIf(Not usecoloralpha, Drawing.Color.FromArgb(255, cpix.R, cpix.R, cpix.R), Drawing.Color.FromArgb(cpix.R, 255, 0, 0)))
@@ -752,6 +756,19 @@
                             Else
                                 writecolor.SetPixel(x, y, Drawing.Color.FromArgb(255 - cpixsat, colorizeby))
                             End If
+                        Case ColorChannels.colorshift
+                            If usecoloralpha Then
+                                imglist.Add(savename, Nothing)
+                                writecolor.Dispose()
+                                dgui.Dispose()
+                                Exit Sub
+                            End If
+
+                            Dim redc As Integer = IIf(Convert.ToInt32(cpix.R) + Convert.ToInt32(colorizeby.R) > 255, 255, Convert.ToInt32(cpix.R) + Convert.ToInt32(colorizeby.R))
+                            Dim greenc As Integer = IIf(Convert.ToInt32(cpix.G) + Convert.ToInt32(colorizeby.G) > 255, 255, Convert.ToInt32(cpix.G) + Convert.ToInt32(colorizeby.G))
+                            Dim bluec As Integer = IIf(Convert.ToInt32(cpix.B) + Convert.ToInt32(colorizeby.B) > 255, 255, Convert.ToInt32(cpix.B) + Convert.ToInt32(colorizeby.B))
+                            writecolor.SetPixel(x, y, Drawing.Color.FromArgb(redc, greenc, bluec))
+                            dgui.DrawRectangle(New Drawing.Pen(Drawing.Color.FromArgb(255 - (cpix.GetBrightness * 255), Drawing.Color.Black)), x, y, 1, 1)
 
                         Case ColorChannels.hue
                             writecolor.SetPixel(x, y, IIf(Not usecoloralpha, colorhue, colorhue))
@@ -773,6 +790,29 @@
                                 writecolor.SetPixel(x, y, Drawing.Color.Black)
                             End If
 
+                        Case ColorChannels.linedraw
+
+                            Dim cbright As Double = cpix.GetBrightness
+                            Dim brightoffset As Double = 0.025
+                            Dim offset As Integer = 1
+                            Dim abletograb As Integer = 0
+                            Dim combinedbrightness As Double = 0
+                            While offset >= 1
+                                If x + offset < pictosplit.Width Then
+                                    combinedbrightness += pictosplit.GetPixel(x + offset, y).GetBrightness
+                                    abletograb += 1
+                                End If
+                                offset -= 1
+                            End While
+
+                            If abletograb >= 1 Then
+
+                                If (combinedbrightness / abletograb) - pictosplit.GetPixel(x, y).GetBrightness <= brightoffset Then
+                                    Continue For
+                                End If
+                            End If
+
+                            writecolor.SetPixel(x, y, Drawing.Color.Black)
                         Case Else
                             imglist.Add(savename, Nothing)
                             writecolor.Dispose()
@@ -798,6 +838,11 @@
             Console.WriteLine("Wrote " & savename)
             imglist.Add(savename, tfile)
         Catch ex As Exception
+            Try
+                pictosplit.Dispose()
+            Catch ex2 As Exception
+
+            End Try
             imglist.Add(savename, Nothing)
         End Try
 
