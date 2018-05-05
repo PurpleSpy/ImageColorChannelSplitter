@@ -5,7 +5,6 @@
     Dim grabcoloralphas As Boolean = True
     Dim copyonlyoriginals As Boolean = False
     Dim gnozip As Boolean = False
-    Dim listenport As Integer = 80
     Dim cwebserver As Net.HttpListener = Nothing
     Dim skipuricheck As Boolean = False
     Dim pixelcount As Long = 0
@@ -16,7 +15,8 @@
     Dim maxthresh As Integer = 255
     Dim usecolormatrix As Boolean = False
     Dim colorizeby As Drawing.Color = Drawing.Color.Black
-
+    Dim usenegativecolorshift As Boolean = False
+    Dim floatbrightadjust As Double = 0.0
     Sub Main()
 
         AddHandler Console.CancelKeyPress, AddressOf controlcpressed
@@ -130,26 +130,27 @@
                         grabcoloralphas = True
                     Case "c"
                         allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.cyan))
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.cyanwhite))
                     Case "L"
                         allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.colorize))
                     Case "m"
                         allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.magenta))
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.magentawhite))
                     Case "y"
                         allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.yellow))
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.yellowwhite))
                     Case "k"
                         allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.black))
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.blackwhite))
                     Case "r"
                         allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.redblack))
-                    Case "R"
                         allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.redwhite))
 
                     Case "g"
                         allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.greenblack))
-                    Case "G"
                         allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.greenwhite))
                     Case "b"
                         allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.blueblack))
-                    Case "B"
                         allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.bluewhite))
                     Case "u"
                         allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.hue))
@@ -171,7 +172,8 @@
                         allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.colorshift))
                     Case "n"
                         allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.linedraw))
-
+                    Case "x"
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.exposureadjust))
                 End Select
             Next
 
@@ -210,6 +212,21 @@
                 Continue For
             End If
 
+            If itm.ToUpper = "NEGATIVE" Then
+                usenegativecolorshift = True
+                Continue For
+            End If
+            If itm.IndexOf("%") = itm.Length - 1 Then
+                Try
+                    floatbrightadjust = Double.Parse(itm.Replace("%", "")) / 100
+                    Continue For
+                Catch ex As Exception
+
+                End Try
+
+
+            End If
+
             If IO.Directory.Exists(itm) Then
                 skipuricheck = True
                 Dim cdir As New IO.DirectoryInfo(itm)
@@ -225,7 +242,8 @@
                                 End Try
 
                             End If
-
+                        Case ".arg"
+                            Threading.ThreadPool.QueueUserWorkItem(AddressOf processCommandLineargs, IO.File.ReadAllLines(dfile.FullName))
                     End Select
 
                 Next
@@ -328,6 +346,10 @@
         cyan
         black
         magenta
+        cyanwhite
+        yellowwhite
+        magentawhite
+        blackwhite
         grayscale
         inverted
         saturation
@@ -337,6 +359,7 @@
         colorize
         colorshift
         linedraw
+        exposureadjust
     End Enum
 
 
@@ -347,7 +370,7 @@
         Dim barra As New ArrayList
         Dim commanlist As String = "aAcmykrRgGbButTe"
         Console.WriteLine(My.Application.Info.AssemblyName & " " & My.Application.Info.Version.ToString)
-        Console.WriteLine("Useage (-options) (hexcode) arg1-argx ")
+        Console.WriteLine("Useage (-options) (hexcode) (negative) arg1-argx ")
         Console.WriteLine("Args may be individual image, files, argument files,directories or web url, zipfiles if chosen or individual files will be placed in the same folder as original image")
         Console.WriteLine("Images that were downloaded from url and clipboard images will be saved to " & My.Application.Info.DirectoryPath & "\imgdownloads")
         Console.WriteLine("--- OPTIONS ---")
@@ -374,14 +397,15 @@
             Console.WriteLine("-" & commanlist(i) & " Copies " & GetType(ColorChannels).GetEnumName(barra(i)) & " Channel")
         Next
         Console.WriteLine("-f copy files rather than zip them up")
-        Console.WriteLine("-L Colorizes an image with a color hexcode, only images after hexcode will be colorized, works best with darker colors light ones produce white pictures, place hexcode in arguments")
-        Console.WriteLine("-F Shifts image color with a color filter , place hexcode in arguments, darker hexcodes work better light hexcodes produce white pictures")
+        Console.WriteLine("-L Colorizes an image with a color hexcode, only images after hexcode will be colorized, works best with darker colors light ones produce white pictures, place hexcode in arguments optional keyword ""negative"" may be used, int that case subtracts that color from image")
+        Console.WriteLine("-F Shifts image color with a color filter , place hexcode in arguments, darker hexcodes work better light hexcodes produce white pictures, optional keyword ""negative"" may be used, in that case subtracts that color from image")
         Console.WriteLine("-i invert image color")
         Console.WriteLine("-o on downloaded images, copys only downloaded original")
         Console.WriteLine("-C use image stored in clipboard")
         Console.WriteLine("-S takes a sample of image with threshold 0-255, add to the program arguments, first will set min thresh and second will set to max thresh")
         Console.WriteLine("-n uses edge detection and makes a bad fax or pencil drawing")
         Console.WriteLine("-M Uses a color matrix, much faster to split the rgbblack channels and grayscale, no alpha channels versions available this way")
+        Console.WriteLine("-x adjusts exposeure 0-100% or -0-100% ,0 is middle and no adjustment , add percentage to arguments")
         Console.WriteLine("Misc ----")
         Console.WriteLine()
         Console.WriteLine("EX:threshold example -S 100 250 image.jpg")
@@ -507,38 +531,44 @@
 
     Function convertToCMYKpercent(rgba As Drawing.Color) As SortedList
         Dim returnval As New SortedList
-        Dim degreered As Long = rgba.R / 255
-        Dim degreeblue As Long = rgba.B / 255
-        Dim degreegreen As Long = rgba.G / 255
+        Dim degreered As Double = Convert.ToDouble(rgba.R) / 255
+        Dim degreeblue As Double = Convert.ToDouble(rgba.B) / 255
+        Dim degreegreen As Double = Convert.ToDouble(rgba.G) / 255
 
         returnval("black") = 1 - mathmax(New Double() {degreeblue, degreegreen, degreered})
+        If returnval("black") <> 1 Then
 
-        Try
-            returnval("cyan") = (1 - degreered - returnval("black")) / (1 - returnval("black"))
-            If Double.IsNaN(returnval("cyan")) Then
+
+            Try
+                returnval("cyan") = (1 - degreered - returnval("black")) / (1 - returnval("black"))
+                If Double.IsNaN(returnval("cyan")) Then
+                    returnval("cyan") = 0
+                End If
+            Catch ex As Exception
                 returnval("cyan") = 0
-            End If
-        Catch ex As Exception
-            returnval("cyan") = 0
-        End Try
+            End Try
 
-        Try
-            returnval("magenta") = (1 - degreegreen - returnval("black")) / (1 - returnval("black"))
-            If Double.IsNaN(returnval("magenta")) Then
+            Try
+                returnval("magenta") = (1 - degreegreen - returnval("black")) / (1 - returnval("black"))
+                If Double.IsNaN(returnval("magenta")) Then
+                    returnval("magenta") = 0
+                End If
+            Catch ex As Exception
                 returnval("magenta") = 0
-            End If
-        Catch ex As Exception
-            returnval("magenta") = 0
-        End Try
-        Try
-            returnval("yellow") = (1 - degreeblue - returnval("black")) / (1 - returnval("black"))
-            If Double.IsNaN(returnval("yellow")) Then
+            End Try
+            Try
+                returnval("yellow") = (1 - degreeblue - returnval("black")) / (1 - returnval("black"))
+                If Double.IsNaN(returnval("yellow")) Then
+                    returnval("yellow") = 0
+                End If
+            Catch ex As Exception
                 returnval("yellow") = 0
-            End If
-        Catch ex As Exception
+            End Try
+        Else
             returnval("yellow") = 0
-        End Try
-
+            returnval("magenta") = 0
+            returnval("cyan") = 0
+        End If
 
 
 
@@ -731,6 +761,19 @@
 
                         Case ColorChannels.magenta
                             writecolor.SetPixel(x, y, IIf(Not usecoloralpha, Drawing.Color.FromArgb(255, colorcmyk("magenta"), colorcmyk("magenta"), colorcmyk("magenta")), Drawing.Color.FromArgb(colorcmyk("magenta"), 255, 0, 255)))
+                        Case ColorChannels.yellow
+                            writecolor.SetPixel(x, y, IIf(Not usecoloralpha, Drawing.Color.FromArgb(255, colorcmyk("yellow"), colorcmyk("yellow"), colorcmyk("yellow")), Drawing.Color.FromArgb(colorcmyk("yellow"), 255, 255, 0)))
+
+                        Case ColorChannels.blackwhite
+                            writecolor.SetPixel(x, y, IIf(Not usecoloralpha, Drawing.Color.FromArgb(255, 255 - colorcmyk("black"), 255 - colorcmyk("black"), 255 - colorcmyk("black")), Drawing.Color.FromArgb(255 - colorcmyk("black"), 0, 0, 0)))
+
+                        Case ColorChannels.cyanwhite
+                            writecolor.SetPixel(x, y, IIf(Not usecoloralpha, Drawing.Color.FromArgb(255, 255 - colorcmyk("cyan"), 255 - colorcmyk("cyan"), 255 - colorcmyk("cyan")), Drawing.Color.FromArgb(255 - colorcmyk("cyan"), 0, 0, 0)))
+
+                        Case ColorChannels.magentawhite
+                            writecolor.SetPixel(x, y, IIf(Not usecoloralpha, Drawing.Color.FromArgb(255, 255 - colorcmyk("magenta"), 255 - colorcmyk("magenta"), 255 - colorcmyk("magenta")), Drawing.Color.FromArgb(255 - colorcmyk("magenta"), 0, 0, 0)))
+                        Case ColorChannels.yellowwhite
+                            writecolor.SetPixel(x, y, IIf(Not usecoloralpha, Drawing.Color.FromArgb(255, 255 - colorcmyk("yellow"), 255 - colorcmyk("yellow"), 255 - colorcmyk("yellow")), Drawing.Color.FromArgb(255 - colorcmyk("yellow"), 0, 0, 0)))
 
                         Case ColorChannels.saturation
                             writecolor.SetPixel(x, y, IIf(Not usecoloralpha, Drawing.Color.FromArgb(255, cpix.GetSaturation * 255, cpix.GetSaturation * 255, cpix.GetSaturation * 255), Drawing.Color.FromArgb(cpix.GetSaturation * 255, 0, 0, 0)))
@@ -744,17 +787,31 @@
                                 Exit Sub
                             End If
                             Dim cpixsat As Integer = cpix.GetBrightness * 255
+                            If Not usenegativecolorshift Then
+                                If Not usecoloralpha Then
+                                    Dim colorizered As Integer = IIf(cpixsat + colorizeby.R > 255, 255, cpixsat + colorizeby.R)
+                                    Dim colorizegreen As Integer = IIf(cpixsat + colorizeby.G > 255, 255, cpixsat + colorizeby.G)
+                                    Dim colorizeblue As Integer = IIf(cpixsat + colorizeby.B > 255, 255, cpixsat + colorizeby.B)
+                                    dgui.DrawRectangle(New Drawing.Pen(Drawing.Color.FromArgb(colorizered, colorizegreen, colorizeblue)), x, y, 1, 1)
+                                    dgui.DrawRectangle(New Drawing.Pen(Drawing.Color.FromArgb(255 - cpixsat, colorizeby)), x, y, 1, 1)
 
-                            If Not usecoloralpha Then
-                                Dim colorizered As Integer = IIf(cpixsat + colorizeby.R > 255, 255, cpixsat + colorizeby.R)
-                                Dim colorizegreen As Integer = IIf(cpixsat + colorizeby.G > 255, 255, cpixsat + colorizeby.G)
-                                Dim colorizeblue As Integer = IIf(cpixsat + colorizeby.B > 255, 255, cpixsat + colorizeby.B)
-                                dgui.DrawRectangle(New Drawing.Pen(Drawing.Color.FromArgb(colorizered, colorizegreen, colorizeblue)), x, y, 1, 1)
-                                dgui.DrawRectangle(New Drawing.Pen(Drawing.Color.FromArgb(255 - cpixsat, colorizeby)), x, y, 1, 1)
 
-
+                                Else
+                                    writecolor.SetPixel(x, y, Drawing.Color.FromArgb(255 - cpixsat, colorizeby))
+                                End If
                             Else
-                                writecolor.SetPixel(x, y, Drawing.Color.FromArgb(255 - cpixsat, colorizeby))
+                                If Not usecoloralpha Then
+                                    Dim colorizered As Integer = IIf(cpixsat - colorizeby.R < 0, 0, cpixsat - colorizeby.R)
+                                    Dim colorizegreen As Integer = IIf(cpixsat - colorizeby.G < 0, 0, cpixsat - colorizeby.G)
+                                    Dim colorizeblue As Integer = IIf(cpixsat - colorizeby.B < 0, 0, cpixsat - colorizeby.B)
+                                    dgui.DrawRectangle(New Drawing.Pen(Drawing.Color.FromArgb(colorizered, colorizegreen, colorizeblue)), x, y, 1, 1)
+                                    dgui.DrawRectangle(New Drawing.Pen(Drawing.Color.FromArgb(255 - cpixsat, colorizeby)), x, y, 1, 1)
+
+
+                                Else
+                                    writecolor.SetPixel(x, y, Drawing.Color.FromArgb(255 - cpixsat, colorizeby))
+                                End If
+
                             End If
                         Case ColorChannels.colorshift
                             If usecoloralpha Then
@@ -764,11 +821,20 @@
                                 Exit Sub
                             End If
 
-                            Dim redc As Integer = IIf(Convert.ToInt32(cpix.R) + Convert.ToInt32(colorizeby.R) > 255, 255, Convert.ToInt32(cpix.R) + Convert.ToInt32(colorizeby.R))
-                            Dim greenc As Integer = IIf(Convert.ToInt32(cpix.G) + Convert.ToInt32(colorizeby.G) > 255, 255, Convert.ToInt32(cpix.G) + Convert.ToInt32(colorizeby.G))
-                            Dim bluec As Integer = IIf(Convert.ToInt32(cpix.B) + Convert.ToInt32(colorizeby.B) > 255, 255, Convert.ToInt32(cpix.B) + Convert.ToInt32(colorizeby.B))
-                            writecolor.SetPixel(x, y, Drawing.Color.FromArgb(redc, greenc, bluec))
-                            dgui.DrawRectangle(New Drawing.Pen(Drawing.Color.FromArgb(255 - (cpix.GetBrightness * 255), Drawing.Color.Black)), x, y, 1, 1)
+                            If Not usenegativecolorshift Then
+                                Dim redc As Integer = IIf(Convert.ToInt32(cpix.R) + Convert.ToInt32(colorizeby.R) > 255, 255, Convert.ToInt32(cpix.R) + Convert.ToInt32(colorizeby.R))
+                                Dim greenc As Integer = IIf(Convert.ToInt32(cpix.G) + Convert.ToInt32(colorizeby.G) > 255, 255, Convert.ToInt32(cpix.G) + Convert.ToInt32(colorizeby.G))
+                                Dim bluec As Integer = IIf(Convert.ToInt32(cpix.B) + Convert.ToInt32(colorizeby.B) > 255, 255, Convert.ToInt32(cpix.B) + Convert.ToInt32(colorizeby.B))
+                                writecolor.SetPixel(x, y, Drawing.Color.FromArgb(redc, greenc, bluec))
+                                dgui.DrawRectangle(New Drawing.Pen(Drawing.Color.FromArgb(255 - (cpix.GetBrightness * 255), Drawing.Color.Black)), x, y, 1, 1)
+                            Else
+                                Dim redc As Integer = IIf(Convert.ToInt32(cpix.R) - Convert.ToInt32(colorizeby.R) < 0, 0, Convert.ToInt32(cpix.R) - Convert.ToInt32(colorizeby.R))
+                                Dim greenc As Integer = IIf(Convert.ToInt32(cpix.G) - Convert.ToInt32(colorizeby.G) < 0, 0, Convert.ToInt32(cpix.G) - Convert.ToInt32(colorizeby.G))
+                                Dim bluec As Integer = IIf(Convert.ToInt32(cpix.B) - Convert.ToInt32(colorizeby.B) < 0, 0, Convert.ToInt32(cpix.B) - Convert.ToInt32(colorizeby.B))
+                                writecolor.SetPixel(x, y, Drawing.Color.FromArgb(redc, greenc, bluec))
+                                dgui.DrawRectangle(New Drawing.Pen(Drawing.Color.FromArgb(255 - (cpix.GetBrightness * 255), Drawing.Color.Black)), x, y, 1, 1)
+                            End If
+
 
                         Case ColorChannels.hue
                             writecolor.SetPixel(x, y, IIf(Not usecoloralpha, colorhue, colorhue))
@@ -813,6 +879,36 @@
                             End If
 
                             writecolor.SetPixel(x, y, Drawing.Color.Black)
+                        Case ColorChannels.exposureadjust
+                            If usecoloralpha Then
+                                imglist.Add(savename, Nothing)
+                                writecolor.Dispose()
+                                dgui.Dispose()
+                                Exit Sub
+                            End If
+                            Dim rj As Integer = Integer.Parse(cpix.R) + (floatbrightadjust * 255)
+                            Dim bj As Integer = Integer.Parse(cpix.B) + (floatbrightadjust * 255)
+                            Dim gj As Integer = Integer.Parse(cpix.G) + (floatbrightadjust * 255)
+
+                            Select Case rj
+                                Case > 255
+                                    rj = 255
+                                Case < 0
+                                    rj = 0
+                            End Select
+                            Select Case bj
+                                Case > 255
+                                    bj = 255
+                                Case < 0
+                                    bj = 0
+                            End Select
+                            Select Case gj
+                                Case > 255
+                                    gj = 255
+                                Case < 0
+                                    gj = 0
+                            End Select
+                            writecolor.SetPixel(x, y, Drawing.Color.FromArgb(rj, gj, gj))
                         Case Else
                             imglist.Add(savename, Nothing)
                             writecolor.Dispose()
@@ -916,14 +1012,12 @@
     End Sub
     Private Function GetEncoder(ByVal format As Drawing.Imaging.ImageFormat) As Drawing.Imaging.ImageCodecInfo
 
-        Dim codecs As Drawing.Imaging.ImageCodecInfo() = Drawing.Imaging.ImageCodecInfo.GetImageDecoders()
 
-        Dim codec As Drawing.Imaging.ImageCodecInfo
-        For Each codec In codecs
+        For Each codec As Drawing.Imaging.ImageCodecInfo In Drawing.Imaging.ImageCodecInfo.GetImageDecoders()
             If codec.FormatID = format.Guid Then
                 Return codec
             End If
-        Next codec
+        Next
         Return Nothing
 
     End Function
