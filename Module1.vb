@@ -17,6 +17,7 @@
     Dim colorizeby As Drawing.Color = Drawing.Color.Black
     Dim usenegativecolorshift As Boolean = False
     Dim floatbrightadjust As Double = 0.0
+
     Sub Main()
 
         AddHandler Console.CancelKeyPress, AddressOf controlcpressed
@@ -174,6 +175,8 @@
                         allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.linedraw))
                     Case "x"
                         allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.exposureadjust))
+                    Case "G"
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.colorgut))
                 End Select
             Next
 
@@ -360,6 +363,7 @@
         colorshift
         linedraw
         exposureadjust
+        colorgut
     End Enum
 
 
@@ -403,9 +407,11 @@
         Console.WriteLine("-o on downloaded images, copys only downloaded original")
         Console.WriteLine("-C use image stored in clipboard")
         Console.WriteLine("-S takes a sample of image with threshold 0-255, add to the program arguments, first will set min thresh and second will set to max thresh")
+        Console.WriteLine("-G takes a sample of image with threshold 0-255, same as threshold except does it in color, determines by pixel brightness")
         Console.WriteLine("-n uses edge detection and makes a bad fax or pencil drawing")
         Console.WriteLine("-M Uses a color matrix, much faster to split the rgbblack channels and grayscale, no alpha channels versions available this way")
         Console.WriteLine("-x adjusts exposeure 0-100% or -0-100% ,0 is middle and no adjustment , add percentage to arguments")
+
         Console.WriteLine("Misc ----")
         Console.WriteLine()
         Console.WriteLine("EX:threshold example -S 100 250 image.jpg")
@@ -700,7 +706,7 @@
         Dim tfile As String = getRealTempfile()
         Dim blackcount As Integer = 0
         Using dgui As Drawing.Graphics = Drawing.Graphics.FromImage(writecolor)
-            If usecoloralpha Then
+            If usecoloralpha Or chanselect = ColorChannels.colorgut Then
                 writecolor.MakeTransparent()
             Else
                 dgui.FillRectangle(Drawing.Brushes.White, 0, 0, writecolor.Width, writecolor.Height)
@@ -723,7 +729,7 @@
                             If cpix.A = 0 Then
                                 blackcount += 1
                             End If
-                            If blackcount / (pictosplit.Height * pictosplit.Width) >= 1 Then
+                            If blackcount / (pictosplit.Height * pictosplit.Width) >= 0.98 Then
                                 imglist.Add(savename, Nothing)
                                 writecolor.Dispose()
                                 dgui.Dispose()
@@ -909,6 +915,24 @@
                                     gj = 0
                             End Select
                             writecolor.SetPixel(x, y, Drawing.Color.FromArgb(rj, gj, gj))
+                        Case ColorChannels.colorgut
+                            If usecoloralpha Then
+                                imglist.Add(savename, Nothing)
+                                writecolor.Dispose()
+                                dgui.Dispose()
+                                Exit Sub
+                            End If
+
+                            Dim cbright As Double = cpix.GetBrightness
+                            Dim thmax As Double = maxthresh / 255
+                            Dim thmin As Double = minthresh / 255
+
+                            If (cbright >= thmin) And (cbright <= thmax) Then
+                                writecolor.SetPixel(x, y, cpix)
+                            Else
+                                writecolor.SetPixel(x, y, Drawing.Color.FromArgb(0, cpix))
+                            End If
+
                         Case Else
                             imglist.Add(savename, Nothing)
                             writecolor.Dispose()
