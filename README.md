@@ -4,7 +4,7 @@ Useage (-options) (hexcode) (negative) arg1-argx
 
 Args may be individual image, files, argument files,directories or web url, zipfiles if chosen or individual files will be placed in the same folder as original image
 
-Images that were downloaded from url and clipboard images will be saved to thisapp\imgdownloads
+Images that were downloaded from url and clipboard images will be saved to J:\visual studio 2017\projects 17\ChannelSplit\ChannelSplit\bin\Debug\imgdownloads
 
 --- OPTIONS ---
 
@@ -48,21 +48,21 @@ Images that were downloaded from url and clipboard images will be saved to thisa
 
 -i invert image color
 
--o on downloaded images, copies only downloaded original
+-o on downloaded images, copys only downloaded original
 
 -C use image stored in clipboard
 
 -S takes a sample of image with threshold 0-255, add to the program arguments, first will set min thresh and second will set to max thresh
 
+-G takes a sample of image with threshold 0-255, same as threshold except does it in color, determines by pixel brightness
+
 -n uses edge detection and makes a bad fax or pencil drawing
 
 -M Uses a color matrix, much faster to split the rgbblack channels and grayscale, no alpha channels versions available this way
 
--x adjusts exposure 0-100% or -0-100% ,0 is middle and no adjustment , add percentage to arguments
+-x adjusts exposeure 0-100% or -0-100% ,0 is middle and no adjustment , add percentage to arguments
 
 Misc ----
-
-
 
 
 
