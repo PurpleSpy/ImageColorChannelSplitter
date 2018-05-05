@@ -1,10 +1,10 @@
 ChannelSplit 1.0.0.0
 
-Useage (-options) (hexcode) arg1-argx
+Useage (-options) (hexcode) (negative) arg1-argx
 
 Args may be individual image, files, argument files,directories or web url, zipfiles if chosen or individual files will be placed in the same folder as original image
 
-Images that were downloaded from url and clipboard images will be saved to thisapp\imgdownloads
+Images that were downloaded from url and clipboard images will be saved to J:\visual studio 2017\projects 17\ChannelSplit\ChannelSplit\bin\Debug\imgdownloads
 
 --- OPTIONS ---
 
@@ -42,13 +42,13 @@ Images that were downloaded from url and clipboard images will be saved to thisa
 
 -f copy files rather than zip them up
 
--L Colorizes an image with a color hexcode, only images after hexcode will be colorized, works best with darker colors light ones produce white pictures, place hexcode in arguments
+-L Colorizes an image with a color hexcode, only images after hexcode will be colorized, works best with darker colors light ones produce white pictures, place hexcode in arguments optional keyword "negative" may be used, int that case subtracts that color from image
 
--F Shifts image color with a color filter , place hexcode in arguments, darker hexcodes work better light hexcodes produce white pictures
+-F Shifts image color with a color filter , place hexcode in arguments, darker hexcodes work better light hexcodes produce white pictures, optional keyword "negative" may be used, in that case subtracts that color from image
 
 -i invert image color
 
--o on downloaded images, copys only downloaded original
+-o on downloaded images, copies only downloaded original
 
 -C use image stored in clipboard
 
@@ -58,7 +58,11 @@ Images that were downloaded from url and clipboard images will be saved to thisa
 
 -M Uses a color matrix, much faster to split the rgbblack channels and grayscale, no alpha channels versions available this way
 
+-x adjusts exposure 0-100% or -0-100% ,0 is middle and no adjustment , add percentage to arguments
+
 Misc ----
+
+
 
 
 
