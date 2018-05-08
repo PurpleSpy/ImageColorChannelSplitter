@@ -5,6 +5,7 @@
     Property grabcoloralphas As Boolean = True
     Property copyonlyoriginals As Boolean = False
     Property gnozip As Boolean = False
+    Property cwebserver As Net.HttpListener = Nothing
     Property skipuricheck As Boolean = False
     Property pixelcount As Long = 0
     Property oldrunningthreads As Integer = 0
@@ -14,15 +15,8 @@
     Property maxthresh As Integer = 255
     Property usecolormatrix As Boolean = False
     Property colorizeby As Drawing.Color = Drawing.Color.Black
-    Property colorshiftby As Drawing.Color = Drawing.Color.Black
     Property usenegativecolorshift As Boolean = False
-    Property usenegativecolorize As Boolean = False
     Property floatbrightadjust As Double = 0.0
-    Property floatbrighttolerance As Double = 0.015
-    Property linereachrange As Integer = 30
-    Property rotationdegree As Single = 0
-    Property onlyoneimageset As Boolean = False
-    Property oneimageused As Boolean = False
 
     Sub Main()
 
@@ -46,7 +40,7 @@
             Threading.ThreadPool.QueueUserWorkItem(AddressOf processCommandLineargs, My.Application.CommandLineArgs.ToArray)
 
 
-            Threading.Thread.Sleep(8000)
+            Threading.Thread.Sleep(2000)
             maxrunthreads = runningthreads
 
             While runningthreads > 0
@@ -65,16 +59,24 @@
         End If
         dostartercleanup()
     End Sub
-
     Sub processCommandLineargs(args As Object)
 
         Dim strarg As String() = args
         processCommandLineargs(strarg)
     End Sub
 
-    Sub processCommandLineargs(args As String())
+    Function getVariableSTate() As SortedList
+        Dim stxp As New SortedList
+        Dim props As Object = My.Application.GetType.GetProperties
+        For Each var As Reflection.PropertyInfo In My.Application.GetType.GetProperties
+            stxp.Add(var.Name, var.GetValue(My.Application))
 
-        Dim rex As New Text.RegularExpressions.Regex("^[A-z]\-?\#?[a-fA-F0-9]+\%?")
+        Next
+        Return stxp
+    End Function
+
+    Sub processCommandLineargs(args As String())
+        getVariableSTate()
         If args(0).IndexOf("-") = 0 Then
             Dim allowstring As String = args(0)
             skipuricheck = True
@@ -181,29 +183,11 @@
                     Case "F"
                         allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.colorshift))
                     Case "n"
-                        If allowstring.IndexOf("n") = 1 And allowstring.Length = 2 Then
-                            allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.linedraw))
-                            grabcoloralphas = True
-                        Else
-                            Console.WriteLine("Draw line must be used alone, ignoring command")
-
-                        End If
-                    Case "R"
-                        If allowstring.IndexOf("R") = 1 And allowstring.Length = 2 Then
-                            allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.rotateimage))
-                        Else
-                            Console.WriteLine("Rotate must be used alone, ignoring command")
-
-                        End If
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.linedraw))
                     Case "x"
                         allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.exposureadjust))
                     Case "G"
                         allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.colorgut))
-                    Case "z"
-                        Dim fx As New Random
-                        colorizeby = Drawing.Color.FromArgb(fx.Next(0, 255), fx.Next(0, 255), fx.Next(0, 255))
-                        colorshiftby = colorizeby
-
                 End Select
             Next
 
@@ -211,100 +195,49 @@
 
         For Each itm As String In args
 
+            Try
+                Dim ctx As Byte = Byte.Parse(itm)
+                If minthresh = 0 Then
+                    minthresh = ctx
+                    Continue For
+                End If
+                If maxthresh = 255 Then
+                    maxthresh = ctx
+                    Continue For
+                End If
+            Catch ex As Exception
 
-            If rex.IsMatch(itm) Then
-                Dim bsub As String = itm.Substring(1)
-                bsub = bsub.Replace("%", "")
-                Dim firstlet As String = itm(0)
-                If bsub.IndexOf("#") = -1 Then
+            End Try
 
-
-                    Select Case firstlet
-
-                        Case "b"
-                            Try
-                                floatbrightadjust = Double.Parse(bsub) / 100
-
-                            Catch ex As Exception
-
-                            End Try
-
-
-                        Case "r"
-                            Try
-                                linereachrange = Integer.Parse(bsub)
-
-                                If linereachrange > 200 Then
-                                    onlyoneimageset = True
-                                    Console.WriteLine("warning: Reach exceeded safe limits for system stabilty, capping at one image only")
-                                End If
-
-                                If linereachrange < 1 Then
-                                    linereachrange = 10
-                                End If
-                            Catch ex As Exception
-                                linereachrange = 10
-                            End Try
-                        Case "t"
-                            Try
-                                floatbrighttolerance = Double.Parse(bsub) / 100
-
-                            Catch ex As Exception
-
-                            End Try
-                        Case "H"
-                            Try
-                                Try
-                                    maxthresh = Byte.Parse(bsub)
-                                Catch ex As Exception
-
-                                End Try
-                            Catch ex As Exception
-
-                            End Try
-                        Case "h"
-                            Try
-                                minthresh = Byte.Parse(bsub)
-                            Catch ex As Exception
-
-                            End Try
-                        Case "R"
-                            Try
-                                rotationdegree = Single.Parse(bsub)
-                            Catch ex As Exception
-
-                            End Try
-                    End Select
-                Else
-
-
-
-                    bsub = bsub.Replace("-", "")
-
-                    Dim bcolor As Drawing.Color = Drawing.Color.Black
+            If itm.IndexOf("#") = 0 Then
+                If itm.Count = 7 Then
                     Try
-                        Dim rval As Integer = Integer.Parse(bsub.Substring(1, 2), Globalization.NumberStyles.HexNumber)
-                        Dim gval As Integer = Integer.Parse(bsub.Substring(3, 2), Globalization.NumberStyles.HexNumber)
-                        Dim bval As Integer = Integer.Parse(bsub.Substring(5, 2), Globalization.NumberStyles.HexNumber)
-                        bcolor = Drawing.Color.FromArgb(rval, gval, bval)
+                        Dim rval As Integer = Integer.Parse(itm.Substring(1, 2), Globalization.NumberStyles.HexNumber)
+                        Dim gval As Integer = Integer.Parse(itm.Substring(3, 2), Globalization.NumberStyles.HexNumber)
+                        Dim bval As Integer = Integer.Parse(itm.Substring(5, 2), Globalization.NumberStyles.HexNumber)
+                        colorizeby = Drawing.Color.FromArgb(rval, gval, bval)
                     Catch ex As Exception
 
                     End Try
 
 
-                    Select Case firstlet
-                        Case "c"
-                            usenegativecolorize = IIf(itm.IndexOf("-") > -1, True, False)
-                            colorizeby = bcolor
-                        Case "C"
-                            usenegativecolorshift = IIf(itm.IndexOf("-") > -1, True, False)
-                            colorshiftby = bcolor
 
-
-                    End Select
                 End If
-
                 Continue For
+            End If
+
+            If itm.ToUpper = "NEGATIVE" Then
+                usenegativecolorshift = True
+                Continue For
+            End If
+            If itm.IndexOf("%") = itm.Length - 1 Then
+                Try
+                    floatbrightadjust = Double.Parse(itm.Replace("%", "")) / 100
+                    Continue For
+                Catch ex As Exception
+
+                End Try
+
 
             End If
 
@@ -407,6 +340,10 @@
         Next
     End Sub
 
+
+
+
+
     Sub controlcpressed(sender As Object, e As ConsoleCancelEventArgs)
         Environment.Exit(0)
     End Sub
@@ -438,25 +375,72 @@
         linedraw
         exposureadjust
         colorgut
-        rotateimage
     End Enum
 
+
+
+
+
     Sub writearghelp()
-        Dim outstring As String = My.Resources.argtext.Replace("%PROGNAME%", My.Application.Info.AssemblyName).Replace("%PROGVERSION%", My.Application.Info.Version.ToString).Replace("%APPLOCATION%", My.Application.Info.DirectoryPath)
-        Console.WriteLine(outstring)
+        Dim barra As New ArrayList
+        Dim commanlist As String = "aAcmykrRgGbButTe"
+        Console.WriteLine(My.Application.Info.AssemblyName & " " & My.Application.Info.Version.ToString)
+        Console.WriteLine("Useage (-options) (hexcode) (negative) arg1-argx ")
+        Console.WriteLine("Args may be individual image, files, argument files,directories or web url, zipfiles if chosen or individual files will be placed in the same folder as original image")
+        Console.WriteLine("Images that were downloaded from url and clipboard images will be saved to " & My.Application.Info.DirectoryPath & "\imgdownloads")
+        Console.WriteLine("--- OPTIONS ---")
+        Console.WriteLine("-a Copies Alpha Channel")
+        Console.WriteLine("-A Creates a color overlay in the color chosen")
+        barra.Add(ColorChannels.alpha)
+        barra.Add("")
+        barra.Add(ColorChannels.cyan)
+        barra.Add(ColorChannels.magenta)
+        barra.Add(ColorChannels.yellow)
+        barra.Add(ColorChannels.black)
+        barra.Add(ColorChannels.redblack)
+        barra.Add(ColorChannels.redwhite)
+        barra.Add(ColorChannels.greenblack)
+        barra.Add(ColorChannels.greenwhite)
+        barra.Add(ColorChannels.blueblack)
+        barra.Add(ColorChannels.bluewhite)
+        barra.Add(ColorChannels.hue)
+        barra.Add(ColorChannels.brightness)
+        barra.Add(ColorChannels.saturation)
+        barra.Add(ColorChannels.grayscale)
+
+        For i As Integer = 2 To commanlist.Length - 1
+            Console.WriteLine("-" & commanlist(i) & " Copies " & GetType(ColorChannels).GetEnumName(barra(i)) & " Channel")
+        Next
+        Console.WriteLine("-f copy files rather than zip them up")
+        Console.WriteLine("-L Colorizes an image with a color hexcode, only images after hexcode will be colorized, place hexcode in arguments optional keyword ""negative"" may be used, in that case subtracts that color from image")
+        Console.WriteLine("-F Shifts image color with a color filter , place hexcode in arguments, optional keyword ""negative"" may be used, in that case subtracts that color from image")
+        Console.WriteLine("-i invert image color")
+        Console.WriteLine("-o on downloaded images, copys only downloaded original")
+        Console.WriteLine("-C use image stored in clipboard")
+        Console.WriteLine("-S takes a sample of image with threshold 0-255, add to the program arguments, first will set min thresh and second will set to max thresh,produces black and white image")
+        Console.WriteLine("-G takes a sample of image with threshold 0-255, determined by pixel brightness, produces color image, looks like a bad copy paste")
+        Console.WriteLine("-n uses edge detection and makes a bad fax or pencil drawing")
+        Console.WriteLine("-M Uses a color matrix, much faster to split the rgbblack channels and grayscale, no alpha channels versions available this way")
+        Console.WriteLine("-x adjusts exposeure 0-100% or -0-100% ,0 is middle and no adjustment , add percentage to arguments")
+
+        Console.WriteLine("Misc ----")
+        Console.WriteLine()
+        Console.WriteLine("EX:threshold example -S 100 250 image.jpg")
+        Console.WriteLine("EX: " & My.Application.Info.AssemblyName & " -AcR image.jpg ""C:\imgdir"" ....")
+        Console.WriteLine("Argument files are just a list of files in a text file, so it would be file,url,or directory then \n, no options any be specifed in argument file")
+        Console.WriteLine("Ex: how to make argument file")
+        Console.WriteLine("Ex: open new text then fill it with one arg per line, no options")
+        Console.WriteLine("Ex: image.jpg\n")
+        Console.WriteLine("Ex: dir\n")
+        Console.WriteLine("Ex: imageurl\n")
+        Console.WriteLine("save text file as .arg and then load in program")
+        '   Console.WriteLine("Its also possible to run diffrent images with diffrent settings theres the overall settings -RGB, but the following thresh and colorshift may be set per image")
+        '  Console.WriteLine("EX: " & My.Application.Info.AssemblyName & " -L #acbc1c image1.jpg #Fcacdc image2.jpg")
 
     End Sub
 
-    Sub splitImage(imgob As Object)
 
-        If onlyoneimageset Then
-            If oneimageused Then
-                Console.WriteLine("Cap reached ignoring process of " & imgob(0))
-                Exit Sub
-            Else
-                oneimageused = True
-            End If
-        End If
+    Sub splitImage(imgob As Object)
 
         Dim img As String = imgob(0)
         Dim allowances As ArrayList = imgob(1)
@@ -499,7 +483,6 @@
             If usecolormatrix Then
                 cthread = New Threading.Thread(AddressOf splitIntoChannelsWithMatrix)
             End If
-
 
             Console.WriteLine("Processing " & crk.Name.Replace(crk.Extension, "") & "  " & GetType(ColorChannels).GetEnumName(eval) & " &  alphachannels")
             roughimgcount += 1
@@ -637,6 +620,8 @@
         Return Drawing.Color.FromArgb(rgba.A, redcolor, bluecolor, greencolor)
     End Function
 
+
+
     Function convertToWhiteBalance(rgba As Drawing.Color) As Drawing.Color
         Dim redaddj As Integer = 255 - rgba.R
         Dim blueaddj As Integer = 255 - rgba.B
@@ -711,6 +696,8 @@
         Return Drawing.Color.FromArgb(255, redcolor * 255, greencolor * 255, bluecolor * 255)
     End Function
 
+
+
     Function mathmax(nums As Double()) As Double
         Dim check As Double = -1
         For Each num As Double In nums
@@ -720,7 +707,6 @@
         Next
         Return check
     End Function
-
     Sub splitIntochannels(cob As Object)
 
         Dim pictosplit As Drawing.Bitmap = cob(0)
@@ -732,8 +718,8 @@
         Dim writecolor As New Drawing.Bitmap(pictosplit.Width, pictosplit.Height)
         Dim tfile As String = getRealTempfile()
         Dim blackcount As Integer = 0
-        Dim dgui As Drawing.Graphics = Drawing.Graphics.FromImage(writecolor)
-        If usecoloralpha Or chanselect = ColorChannels.colorgut Or chanselect = ColorChannels.rotateimage Then
+        Using dgui As Drawing.Graphics = Drawing.Graphics.FromImage(writecolor)
+            If usecoloralpha Or chanselect = ColorChannels.colorgut Then
                 writecolor.MakeTransparent()
             Else
                 dgui.FillRectangle(Drawing.Brushes.White, 0, 0, writecolor.Width, writecolor.Height)
@@ -820,7 +806,7 @@
                                 Exit Sub
                             End If
                             Dim cpixsat As Integer = cpix.GetBrightness * 255
-                            If Not usenegativecolorize Then
+                            If Not usenegativecolorshift Then
                                 If Not usecoloralpha Then
                                     Dim colorizered As Integer = IIf(cpixsat + colorizeby.R > 255, 255, cpixsat + colorizeby.R)
                                     Dim colorizegreen As Integer = IIf(cpixsat + colorizeby.G > 255, 255, cpixsat + colorizeby.G)
@@ -846,14 +832,8 @@
                                 End If
 
                             End If
-                    Case ColorChannels.colorshift
-                        If colorizeby = Drawing.Color.Black Then
-                            imglist.Add(savename, Nothing)
-                            writecolor.Dispose()
-                            dgui.Dispose()
-                            Exit Sub
-                        End If
-                        If usecoloralpha Then
+                        Case ColorChannels.colorshift
+                            If usecoloralpha Then
                                 imglist.Add(savename, Nothing)
                                 writecolor.Dispose()
                                 dgui.Dispose()
@@ -861,15 +841,15 @@
                             End If
 
                             If Not usenegativecolorshift Then
-                                Dim redc As Integer = IIf(Convert.ToInt32(cpix.R) + Convert.ToInt32(colorshiftby.R) > 255, 255, Convert.ToInt32(cpix.R) + Convert.ToInt32(colorshiftby.R))
-                                Dim greenc As Integer = IIf(Convert.ToInt32(cpix.G) + Convert.ToInt32(colorshiftby.G) > 255, 255, Convert.ToInt32(cpix.G) + Convert.ToInt32(colorshiftby.G))
-                                Dim bluec As Integer = IIf(Convert.ToInt32(cpix.B) + Convert.ToInt32(colorshiftby.B) > 255, 255, Convert.ToInt32(cpix.B) + Convert.ToInt32(colorshiftby.B))
+                                Dim redc As Integer = IIf(Convert.ToInt32(cpix.R) + Convert.ToInt32(colorizeby.R) > 255, 255, Convert.ToInt32(cpix.R) + Convert.ToInt32(colorizeby.R))
+                                Dim greenc As Integer = IIf(Convert.ToInt32(cpix.G) + Convert.ToInt32(colorizeby.G) > 255, 255, Convert.ToInt32(cpix.G) + Convert.ToInt32(colorizeby.G))
+                                Dim bluec As Integer = IIf(Convert.ToInt32(cpix.B) + Convert.ToInt32(colorizeby.B) > 255, 255, Convert.ToInt32(cpix.B) + Convert.ToInt32(colorizeby.B))
                                 writecolor.SetPixel(x, y, Drawing.Color.FromArgb(redc, greenc, bluec))
                                 dgui.DrawRectangle(New Drawing.Pen(Drawing.Color.FromArgb(255 - (cpix.GetBrightness * 255), Drawing.Color.Black)), x, y, 1, 1)
                             Else
-                                Dim redc As Integer = IIf(Convert.ToInt32(cpix.R) - Convert.ToInt32(colorshiftby.R) < 0, 0, Convert.ToInt32(cpix.R) - Convert.ToInt32(colorshiftby.R))
-                                Dim greenc As Integer = IIf(Convert.ToInt32(cpix.G) - Convert.ToInt32(colorshiftby.G) < 0, 0, Convert.ToInt32(cpix.G) - Convert.ToInt32(colorshiftby.G))
-                                Dim bluec As Integer = IIf(Convert.ToInt32(cpix.B) - Convert.ToInt32(colorshiftby.B) < 0, 0, Convert.ToInt32(cpix.B) - Convert.ToInt32(colorshiftby.B))
+                                Dim redc As Integer = IIf(Convert.ToInt32(cpix.R) - Convert.ToInt32(colorizeby.R) < 0, 0, Convert.ToInt32(cpix.R) - Convert.ToInt32(colorizeby.R))
+                                Dim greenc As Integer = IIf(Convert.ToInt32(cpix.G) - Convert.ToInt32(colorizeby.G) < 0, 0, Convert.ToInt32(cpix.G) - Convert.ToInt32(colorizeby.G))
+                                Dim bluec As Integer = IIf(Convert.ToInt32(cpix.B) - Convert.ToInt32(colorizeby.B) < 0, 0, Convert.ToInt32(cpix.B) - Convert.ToInt32(colorizeby.B))
                                 writecolor.SetPixel(x, y, Drawing.Color.FromArgb(redc, greenc, bluec))
                                 dgui.DrawRectangle(New Drawing.Pen(Drawing.Color.FromArgb(255 - (cpix.GetBrightness * 255), Drawing.Color.Black)), x, y, 1, 1)
                             End If
@@ -898,41 +878,17 @@
                         Case ColorChannels.linedraw
 
                             Dim cbright As Double = cpix.GetBrightness
-                            Dim brightoffset As Double = floatbrighttolerance
-                            Dim offsetx As Integer = linereachrange
-                            Dim offsety As Integer = linereachrange
-                            Dim offsetdiagnal As Integer = linereachrange
-                            Dim offset As Integer = linereachrange
+                            Dim brightoffset As Double = 0.025
+                            Dim offset As Integer = 1
                             Dim abletograb As Integer = 0
                             Dim combinedbrightness As Double = 0
-
-                            While offset > 1
-
-                                If y - offset > 0 Then
-                                    If x - offset > 0 Then
-                                        combinedbrightness += pictosplit.GetPixel(x - offset, y - offset).GetBrightness
-                                        abletograb += 1
-                                    End If
-                                    If x + offset < pictosplit.Width Then
-                                        combinedbrightness += pictosplit.GetPixel(x + offset, y - offset).GetBrightness
-                                        abletograb += 1
-                                    End If
-                                End If
-                                If y + offset < pictosplit.Height Then
-                                    If x - offset > 0 Then
-                                        combinedbrightness += pictosplit.GetPixel(x - offset, y + offset).GetBrightness
-                                        abletograb += 1
-                                    End If
-                                    If x + offset < pictosplit.Width Then
-                                        combinedbrightness += pictosplit.GetPixel(x + offset, y + offset).GetBrightness
-                                        abletograb += 1
-                                    End If
+                            While offset >= 1
+                                If x + offset < pictosplit.Width Then
+                                    combinedbrightness += pictosplit.GetPixel(x + offset, y).GetBrightness
+                                    abletograb += 1
                                 End If
                                 offset -= 1
                             End While
-
-
-
 
                             If abletograb >= 1 Then
 
@@ -990,21 +946,6 @@
                                 writecolor.SetPixel(x, y, Drawing.Color.FromArgb(0, cpix))
                             End If
 
-                        Case ColorChannels.rotateimage
-
-                        If Convert.ToInt32(rotationdegree / 90) <> 2 Then
-                            writecolor.Dispose()
-                            writecolor = New Drawing.Bitmap(pictosplit.Height, pictosplit.Width)
-                            dgui.Dispose()
-                            dgui = Drawing.Graphics.FromImage(writecolor)
-                        End If
-
-                        dgui.TranslateTransform(Convert.ToSingle(writecolor.Width / 2), Convert.ToSingle(writecolor.Height / 2))
-                            dgui.RotateTransform(rotationdegree)
-                            dgui.DrawImage(pictosplit, New Drawing.Point(Convert.ToSingle(-1 * (writecolor.Width / 2)), Convert.ToSingle(-1 * (writecolor.Height / 2))))
-
-                            y = pictosplit.Height
-                            Exit For
                         Case Else
                             imglist.Add(savename, Nothing)
                             writecolor.Dispose()
@@ -1016,7 +957,7 @@
                 Next
             Next
             dgui.Dispose()
-
+        End Using
 
         Try
             pictosplit.Dispose()
@@ -1106,7 +1047,6 @@
             imglist.Add(savename, Nothing)
         End Try
     End Sub
-
     Private Function GetEncoder(ByVal format As Drawing.Imaging.ImageFormat) As Drawing.Imaging.ImageCodecInfo
 
 
@@ -1162,7 +1102,6 @@
 
         Return gr
     End Function
-
     Public Function getRealTempfile() As String
         While True
             Dim fxv As String = My.Computer.FileSystem.GetTempFileName

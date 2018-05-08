@@ -22,5 +22,16 @@ ChannelSplit
   resource lookups using this strongly typed resource class.
 </summary>
 </member>
+<member name="P:ChannelSplit.My.Resources.Resources.argtext">
+<summary>
+  Looks up a localized string similar to %PROGNAME% %PROGVERSION%
+
+Args may be individual image, files, argument files,directories or web url, zipfiles if chosen or individual files will be placed in the same folder as original image
+Images that were downloaded from url and clipboard images will be saved to thisapplicationlocation\imgdownloads
+-M Uses a color matrix to do grayscale and rgb split, faster than other method
+-a Copies the alpha channel as a grayscale image 
+-A Copies the alpha channel in the color of your choice as an image with [rest of string was truncated]&quot;;.
+</summary>
+</member>
 </members>
 </doc>
