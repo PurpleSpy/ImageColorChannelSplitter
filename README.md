@@ -1,85 +1,99 @@
 ChannelSplit 1.0.0.0
 
-Useage (-options) (hexcode) (negative) arg1-argx
+ChannelSplit (options) (command modifers) arg1-argx
+
+
+
+[program options]
 
 Args may be individual image, files, argument files,directories or web url, zipfiles if chosen or individual files will be placed in the same folder as original image
 
-Images that were downloaded from url and clipboard images will be saved to thisapp\imgdownloads
+Images that were downloaded from url and clipboard images will be saved to thisapplocation\imgdownloads
 
---- OPTIONS ---
+-C Uses Image From clipboad
 
--a Copies Alpha Channel
+-M Uses a color matrix to do grayscale and rgb split, faster than other method
 
--A Creates a color overlay in the color chosen
+-a Copies the alpha channel as a grayscale image
 
--c Copies cyan Channel
+-A Copies the alpha channel in the color of your choice as an image with transparency
 
--m Copies magenta Channel
+-c Grabs the Cyan color channel for black or white backgrounds
 
--y Copies yellow Channel
+-m Grabs the Magenta color channel for black or white backgrounds
 
--k Copies black Channel
+-y Grabs the Yellow color channel for black or white backgrounds
 
--r Copies redblack Channel
+-k Grabs the Yellow color channel for black or white backgrounds
 
--R Copies redwhite Channel
+-r Grabs the Red color channel for black or white backgrounds
 
--g Copies greenblack Channel
+-g Grabs the Green color channel for black or white backgrounds
 
--G Copies greenwhite Channel
+-b Grabs the Blue color channel for black or white backgrounds
 
--b Copies blueblack Channel
+-u Grabs the hue of image
 
--B Copies bluewhite Channel
+-t Grabs the brightness of image
 
--u Copies hue Channel
+-T Grabs the saturation of image
 
--t Copies brightness Channel
+-e Makes a grayscale version of the image
 
--T Copies saturation Channel
+-o For web or clipboard images, only downloads original image and nothing more
 
--e Copies grayscale Channel
+-f Instead of making a zipfile of all the channel images, copies them to the directory of original image instead
 
--f copy files rather than zip them up
+-L Takes a grayscale version the image and then applies a color filter to color the image, takes color aa a hexcode as argument
 
--L Colorizes an image with a color hexcode, only images after hexcode will be colorized, works best with darker colors light ones produce white pictures, place hexcode in arguments optional keyword "negative" may be used, int that case subtracts that color from image
+-F Takes the image and applies a color filter over it, takes color aa a hexcode as argument
 
--F Shifts image color with a color filter , place hexcode in arguments, darker hexcodes work better light hexcodes produce white pictures, optional keyword "negative" may be used, in that case subtracts that color from image
+-z Selects a random color to be used with colorize and colorshift
 
--i invert image color
+-i Inverts the image colors
 
--o on downloaded images, copys only downloaded original
+-S Takes a measurement of image brightness per pixel with a min and max threshold, writes a grayscale image between threshold, can take two arguments from 0-255
 
--C use image stored in clipboard
+-n Draws a outline of image, threshold for brightness and pixel sample size must be set, because of how long it takes this option must be specifed alone
 
--S takes a sample of image with threshold 0-255, add to the program arguments, first will set min thresh and second will set to max thresh
+-G Same as threshold except does it in color, looks like a bad photoshop cutout
 
--G takes a sample of image with threshold 0-255, same as threshold except does it in color, determines by pixel brightness
+-x Adjusts the exposure of a picture from 100%-0%-100% with 0% being no change, takes one argument in percent
 
--n uses edge detection and makes a bad fax or pencil drawing
-
--M Uses a color matrix, much faster to split the rgbblack channels and grayscale, no alpha channels versions available this way
-
--x adjusts exposeure 0-100% or -0-100% ,0 is middle and no adjustment , add percentage to arguments
-
-Misc ----
+-h or -? or /h or /? shows this help page
 
 
 
-EX:threshold example -S 100 250 image.jpg
 
-EX: ChannelSplit -AcR image.jpg "C:\imgdir" ....
 
-Argument files are just a list of files in a text file, so it would be file,url,or directory then \n, no options any be specifed in argument file
+[command modifiers]
 
-Ex: how to make argument file
+command modifiers are how you specify settings for the filters they are just added to arguments
 
-Ex: open new text then fill it with one arg per line, no options
 
-Ex: image.jpg\n
 
-Ex: dir\n
+b+/-100-0% sets the exposure brightness "EX: b50%"
 
-Ex: imageurl\n
+rx X is how many pixels is your sample size in outline draw, larger sample size and lower threshold results in smoother image but slow processs time "EX:  r50", at 200 and above limited to one image and images can take 5mins or more to create
 
-save text file as .arg and then load in program
+t100-0% sets threshold tolerance for line draw, optimal is about 2%
+
+c+/-#hexcode sets the hexcode used for colorize function, may be positive or negative "EX: c#AD321A" OR "EX: c-#cdcdcd"
+
+C+/-#hexcode sets the hexcode used for colorshift function, may be positive or negative "EX: C#AD321A" OR "EX: C-#cdcdcd"
+
+
+
+[argument files]
+
+Argument files are just a list of files in a text file, so it would be file,url,or directory then return one per line, no options or command modifiers can be specified argument file
+
+....how to make argument file...
+
+open new text then fill it with one arg per line, no options then save as with the extention arg
+
+
+
+[useage example]
+
+EX: ChannelSplit -AcR image.jpg "C:\imgdir" ...."
