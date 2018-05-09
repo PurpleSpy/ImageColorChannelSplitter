@@ -8,7 +8,7 @@ ChannelSplit (options) (command modifers) arg1-argx
 
 Args may be individual image, files, argument files,directories or web url, zipfiles if chosen or individual files will be placed in the same folder as original image
 
-Images that were downloaded from url and clipboard images will be saved to thisapplocation\imgdownloads
+Images that were downloaded from url and clipboard images will be saved to J:\visual studio 2017\projects 17\ChannelSplit\ChannelSplit\bin\Debug\imgdownloads
 
 -C Uses Image From clipboad
 
@@ -38,11 +38,17 @@ Images that were downloaded from url and clipboard images will be saved to thisa
 
 -T Grabs the saturation of image
 
--e Makes a grayscale version of the image
-
 -o For web or clipboard images, only downloads original image and nothing more
 
 -f Instead of making a zipfile of all the channel images, copies them to the directory of original image instead
+
+-h or -? or /h or /? shows this help page
+
+
+
+[image filters]
+
+-e Makes a grayscale version of the image
 
 -L Takes a grayscale version the image and then applies a color filter to color the image, takes color aa a hexcode as argument
 
@@ -54,15 +60,27 @@ Images that were downloaded from url and clipboard images will be saved to thisa
 
 -S Takes a measurement of image brightness per pixel with a min and max threshold, writes a grayscale image between threshold, can take two arguments from 0-255
 
--n Draws a outline of image, threshold for brightness and pixel sample size must be set, because of how long it takes this option must be specifed alone
-
 -G Same as threshold except does it in color, looks like a bad photoshop cutout
 
 -x Adjusts the exposure of a picture from 100%-0%-100% with 0% being no change, takes one argument in percent
 
--h or -? or /h or /? shows this help page
+-p sets transparency 100% is totally see through same as a blank image, 0% is solid, needs one argument, if transparent already, will be adjusted further
+
+-d draws image with stippling, stipple density set by argument
+
+-K adds an effect that looks like a frayed shirt
 
 
+
+---ones that must be done alone
+
+-s adds scanlines to image, width of scanlines, opacity of scanlines, scanline every X may all be set with arguments
+
+-n Draws a outline of image, threshold for brightness and pixel sample size must be set, because of how long it takes this option must be specifed alone
+
+//future
+
+rotate image, currently buggy
 
 
 
@@ -82,7 +100,15 @@ c+/-#hexcode sets the hexcode used for colorize function, may be positive or neg
 
 C+/-#hexcode sets the hexcode used for colorshift function, may be positive or negative "EX: C#AD321A" OR "EX: C-#cdcdcd"
 
+o+/-100-0% sets level transparency of image
 
+s100-0% sets scanline opacity
+
+SX sets to draw scanlines at every X rows
+
+wX sets the width of scanlines in X pixels high
+
+nX sets density of stippling, X is possible white space distance between pixels, though a pixel may be drawn between 0-X randomly
 
 [argument files]
 
