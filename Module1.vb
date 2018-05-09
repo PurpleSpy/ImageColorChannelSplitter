@@ -23,10 +23,19 @@
     Property rotationdegree As Single = 0
     Property onlyoneimageset As Boolean = False
     Property oneimageused As Boolean = False
+    Property imgtransparency As Double = 0
+    Property alphanoiserange As Integer = 2
+    Property scanlinepower As Double = 0.25
+    Property scanlinewidth As Integer = 1
+    Property scanlineeveryrow As Integer = 3
+    Property scanlinerotation As Integer = 0
+    Property mustbeusedalone As New ArrayList
 
     Sub Main()
 
         AddHandler Console.CancelKeyPress, AddressOf controlcpressed
+        mustbeusedalone.Add(ColorChannels.linedraw)
+        mustbeusedalone.Add(ColorChannels.scanlines)
 
 
         If My.Application.CommandLineArgs.Count = 0 Then
@@ -66,347 +75,6 @@
         dostartercleanup()
     End Sub
 
-    Sub processCommandLineargs(args As Object)
-
-        Dim strarg As String() = args
-        processCommandLineargs(strarg)
-    End Sub
-
-    Sub processCommandLineargs(args As String())
-
-        Dim rex As New Text.RegularExpressions.Regex("^[A-z]\-?\#?[a-fA-F0-9]+\%?")
-        If args(0).IndexOf("-") = 0 Then
-            Dim allowstring As String = args(0)
-            skipuricheck = True
-            grabcoloralphas = False
-            Try
-
-                If Windows.Forms.Clipboard.ContainsImage And args(0).IndexOf("-") = 0 And args(0).IndexOf("C") > -1 Then
-
-
-                    If Not IO.Directory.Exists(My.Application.Info.DirectoryPath & "\imgdownloads") Then
-                        Try
-                            IO.Directory.CreateDirectory(My.Application.Info.DirectoryPath & "\imgdownloads")
-                        Catch ex As Exception
-
-                        End Try
-
-                    End If
-
-                    Dim curim As Integer = 0
-                    While (IO.File.Exists(My.Application.Info.DirectoryPath & "\imgdownloads\ClipIMG" & curim & ".bmp"))
-                        curim += 1
-                    End While
-                    Dim stxb As New Drawing.Bitmap(Windows.Forms.Clipboard.GetImage)
-                    stxb.Save(My.Application.Info.DirectoryPath & "\imgdownloads\ClipIMG" & curim & ".bmp")
-                    stxb.Dispose()
-                    allowstring = allowstring.Replace("C", "")
-                    Dim stp As New ArrayList
-                    stp.Add(allowstring)
-                    For fxo As Integer = 1 To args.Count - 1
-                        stp.Add(args(fxo))
-                    Next
-                    stp.Add(My.Application.Info.DirectoryPath & "\imgdownloads\ClipIMG" & curim & ".bmp")
-                    processCommandLineargs(stp.ToArray(GetType(String)))
-                    Exit Sub
-                End If
-
-                If Windows.Forms.Clipboard.ContainsText And args(0).IndexOf("-") = 0 And args(0).IndexOf("C") > -1 Then
-                    Dim cliptext As String = Windows.Forms.Clipboard.GetText
-                    If cliptext.ToUpper.IndexOf("BASE64") > -1 Then
-                        Dim datastart As String = cliptext.Substring(cliptext.IndexOf(","))
-                        Dim bstring As Byte() = Convert.FromBase64CharArray(datastart, 0, datastart.Length - 1)
-                        Dim stxp As New IO.MemoryStream(bstring)
-                        Dim mimetype As SortedList = getMime(stxp)
-                    End If
-                End If
-            Catch ex As Exception
-                Exit Sub
-            End Try
-
-
-
-
-            For Each itm As String In allowstring
-
-                Select Case itm
-
-                    Case "M"
-                        usecolormatrix = True
-
-                    Case "a"
-                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.alpha))
-                    Case "A"
-                        grabcoloralphas = True
-                    Case "c"
-                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.cyan))
-                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.cyanwhite))
-                    Case "L"
-                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.colorize))
-                    Case "m"
-                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.magenta))
-                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.magentawhite))
-                    Case "y"
-                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.yellow))
-                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.yellowwhite))
-                    Case "k"
-                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.black))
-                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.blackwhite))
-                    Case "r"
-                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.redblack))
-                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.redwhite))
-
-                    Case "g"
-                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.greenblack))
-                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.greenwhite))
-                    Case "b"
-                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.blueblack))
-                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.bluewhite))
-                    Case "u"
-                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.hue))
-                    Case "t"
-                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.brightness))
-                    Case "T"
-                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.saturation))
-                    Case "e"
-                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.grayscale))
-                    Case "f"
-                        gnozip = True
-                    Case "i"
-                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.inverted))
-                    Case "o"
-                        copyonlyoriginals = True
-                    Case "S"
-                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.threshold))
-                    Case "F"
-                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.colorshift))
-                    Case "n"
-                        If allowstring.IndexOf("n") = 1 And allowstring.Length = 2 Then
-                            allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.linedraw))
-                            grabcoloralphas = True
-                        Else
-                            Console.WriteLine("Draw line must be used alone, ignoring command")
-
-                        End If
-                    Case "R"
-                        If allowstring.IndexOf("R") = 1 And allowstring.Length = 2 Then
-                            allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.rotateimage))
-                        Else
-                            Console.WriteLine("Rotate must be used alone, ignoring command")
-
-                        End If
-                    Case "x"
-                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.exposureadjust))
-                    Case "G"
-                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.colorgut))
-                    Case "z"
-                        Dim fx As New Random
-                        colorizeby = Drawing.Color.FromArgb(fx.Next(0, 255), fx.Next(0, 255), fx.Next(0, 255))
-                        colorshiftby = colorizeby
-
-                End Select
-            Next
-
-        End If
-
-        For Each itm As String In args
-
-
-            If rex.IsMatch(itm) Then
-                Dim bsub As String = itm.Substring(1)
-                bsub = bsub.Replace("%", "")
-                Dim firstlet As String = itm(0)
-                If bsub.IndexOf("#") = -1 Then
-
-
-                    Select Case firstlet
-
-                        Case "b"
-                            Try
-                                floatbrightadjust = Double.Parse(bsub) / 100
-
-                            Catch ex As Exception
-
-                            End Try
-
-
-                        Case "r"
-                            Try
-                                linereachrange = Integer.Parse(bsub)
-
-                                If linereachrange > 200 Then
-                                    onlyoneimageset = True
-                                    Console.WriteLine("warning: Reach exceeded safe limits for system stabilty, capping at one image only")
-                                End If
-
-                                If linereachrange < 1 Then
-                                    linereachrange = 10
-                                End If
-                            Catch ex As Exception
-                                linereachrange = 10
-                            End Try
-                        Case "t"
-                            Try
-                                floatbrighttolerance = Double.Parse(bsub) / 100
-
-                            Catch ex As Exception
-
-                            End Try
-                        Case "H"
-                            Try
-                                Try
-                                    maxthresh = Byte.Parse(bsub)
-                                Catch ex As Exception
-
-                                End Try
-                            Catch ex As Exception
-
-                            End Try
-                        Case "h"
-                            Try
-                                minthresh = Byte.Parse(bsub)
-                            Catch ex As Exception
-
-                            End Try
-                        Case "R"
-                            Try
-                                rotationdegree = Single.Parse(bsub)
-                            Catch ex As Exception
-
-                            End Try
-                    End Select
-                Else
-
-
-
-                    bsub = bsub.Replace("-", "")
-
-                    Dim bcolor As Drawing.Color = Drawing.Color.Black
-                    Try
-                        Dim rval As Integer = Integer.Parse(bsub.Substring(1, 2), Globalization.NumberStyles.HexNumber)
-                        Dim gval As Integer = Integer.Parse(bsub.Substring(3, 2), Globalization.NumberStyles.HexNumber)
-                        Dim bval As Integer = Integer.Parse(bsub.Substring(5, 2), Globalization.NumberStyles.HexNumber)
-                        bcolor = Drawing.Color.FromArgb(rval, gval, bval)
-                    Catch ex As Exception
-
-                    End Try
-
-
-                    Select Case firstlet
-                        Case "c"
-                            usenegativecolorize = IIf(itm.IndexOf("-") > -1, True, False)
-                            colorizeby = bcolor
-                        Case "C"
-                            usenegativecolorshift = IIf(itm.IndexOf("-") > -1, True, False)
-                            colorshiftby = bcolor
-
-
-                    End Select
-                End If
-
-                Continue For
-
-            End If
-
-            If IO.Directory.Exists(itm) Then
-                skipuricheck = True
-                Dim cdir As New IO.DirectoryInfo(itm)
-                For Each dfile As IO.FileInfo In cdir.GetFiles("*.*")
-                    Select Case dfile.Extension.ToLower
-                        Case ".png", ".jpg", ".bmp"
-                            If dfile.Exists Then
-                                Try
-
-                                    Threading.ThreadPool.QueueUserWorkItem(AddressOf splitImage, New Object() {dfile.FullName, allowonly, gnozip})
-                                Catch ex As Exception
-
-                                End Try
-
-                            End If
-                        Case ".arg"
-                            Threading.ThreadPool.QueueUserWorkItem(AddressOf processCommandLineargs, IO.File.ReadAllLines(dfile.FullName))
-                    End Select
-
-                Next
-            End If
-            If IO.File.Exists(itm) Then
-                skipuricheck = True
-                Dim ctxo As New IO.FileInfo(itm)
-                Select Case ctxo.Extension.ToLower
-                    Case ".png", ".jpg", ".bmp"
-                        Try
-
-                            Threading.ThreadPool.QueueUserWorkItem(AddressOf splitImage, New Object() {itm, allowonly, gnozip})
-                        Catch ex As Exception
-
-                        End Try
-                    Case ".arg"
-                        Try
-                            Dim ostring As String() = IO.File.ReadAllLines(itm)
-                            Dim carlist As New ArrayList
-                            For Each itmx As String In ostring
-                                If itmx.IndexOf("-") <> 0 Then
-                                    carlist.Add(itmx)
-                                End If
-                            Next
-                            processCommandLineargs(carlist.ToArray(GetType(String)))
-                        Catch ex As Exception
-
-                        End Try
-                        Continue For
-                End Select
-
-
-            End If
-            If skipuricheck Then
-                skipuricheck = False
-                Continue For
-            End If
-            Try
-                Dim sct As New Uri(itm)
-                Dim tfile As String = getRealTempfile()
-                Using srp As New Net.WebClient
-                    srp.BaseAddress = sct.ToString
-                    Dim outfilename As String = sct.OriginalString.Substring(sct.OriginalString.LastIndexOf("/") + 1)
-                    outfilename = regexreplace("[\W]+", outfilename, "-", Text.RegularExpressions.RegexOptions.IgnoreCase)
-
-                    Try
-                        srp.DownloadFile(sct.ToString, tfile)
-
-                        Dim mimety As SortedList = getMime(tfile)
-                        If Not mimety.ContainsKey("ext") Then
-                            Try
-                                IO.File.Delete(tfile)
-
-                            Catch ex As Exception
-
-                            End Try
-                            srp.Dispose()
-                            Continue For
-                        End If
-                        outfilename = outfilename & mimety("ext")
-                        If Not IO.Directory.Exists(My.Application.Info.DirectoryPath & "\imgdownloads") Then
-                            IO.Directory.CreateDirectory(My.Application.Info.DirectoryPath & "\imgdownloads")
-                        End If
-                        My.Computer.FileSystem.MoveFile(tfile, My.Application.Info.DirectoryPath & "\imgdownloads\" & outfilename, True)
-                        Console.WriteLine(My.Application.Info.DirectoryPath & "\imgdownloads\" & outfilename & " created from url")
-                        If Not copyonlyoriginals Then
-
-
-                            Threading.ThreadPool.QueueUserWorkItem(AddressOf splitImage, New Object() {My.Application.Info.DirectoryPath & "\imgdownloads\" & outfilename, allowonly, gnozip})
-                        End If
-                    Catch ex As Exception
-                        Console.WriteLine("ERROR: " & ex.Message)
-                    End Try
-
-                End Using
-            Catch ex As Exception
-
-            End Try
-
-        Next
-    End Sub
-
     Sub controlcpressed(sender As Object, e As ConsoleCancelEventArgs)
         Environment.Exit(0)
     End Sub
@@ -419,6 +87,7 @@
         bluewhite
         greenwhite
         alpha
+        alphanoise
         yellow
         cyan
         black
@@ -439,6 +108,9 @@
         exposureadjust
         colorgut
         rotateimage
+        transparency
+        scanlines
+        blinds
     End Enum
 
     Sub writearghelp()
@@ -447,123 +119,33 @@
 
     End Sub
 
-    Sub splitImage(imgob As Object)
+    Sub dostartercleanup()
+        Dim dirpath As New IO.DirectoryInfo(My.Computer.FileSystem.SpecialDirectories.Temp)
+        For Each file As IO.FileInfo In dirpath.GetFiles("*.tmp")
+            Try
+                file.Delete()
+            Catch ex As Exception
 
-        If onlyoneimageset Then
-            If oneimageused Then
-                Console.WriteLine("Cap reached ignoring process of " & imgob(0))
-                Exit Sub
+            End Try
+        Next
+    End Sub
+
+    Public Function getRealTempfile() As String
+        While True
+            Dim fxv As String = My.Computer.FileSystem.GetTempFileName
+            Threading.Thread.Sleep(200)
+            If IO.File.Exists(fxv) Then
+                Return fxv
             Else
-                oneimageused = True
-            End If
-        End If
-
-        Dim img As String = imgob(0)
-        Dim allowances As ArrayList = imgob(1)
-        Dim nozip As Boolean = imgob(2)
-        runningthreads += 1
-        Dim imgtosplit As New Drawing.Bitmap(img)
-        Dim crk As New IO.FileInfo(img)
-        Dim curimglist As New SortedList
-        Dim roughimgcount As Integer = 1
-
-        curimglist.Add(crk.Name.Replace(crk.Extension, " original " & crk.Extension), getRealTempfile())
-
-
-        Try
-            While IO.File.Exists(curimglist.GetByIndex(0))
-                curimglist(curimglist.GetKey(0)) = getRealTempfile()
                 Try
-                    IO.File.Delete(curimglist.GetByIndex(0))
+                    IO.File.Delete(fxv)
                 Catch ex As Exception
 
                 End Try
-            End While
-
-            My.Computer.FileSystem.CopyFile(img, curimglist.GetByIndex(0))
-        Catch ex As Exception
-
-        End Try
-
-        Console.WriteLine("Processing " & img)
-        For Each eval As Integer In GetType(ColorChannels).GetEnumValues
-
-            If allowances.Count > 0 Then
-                If Not allowances.Contains(GetType(ColorChannels).GetEnumName(eval)) Then
-                    Continue For
-                End If
             End If
-
-            Dim cthread As New Threading.Thread(AddressOf splitIntochannels)
-
-            If usecolormatrix Then
-                cthread = New Threading.Thread(AddressOf splitIntoChannelsWithMatrix)
-            End If
-
-
-            Console.WriteLine("Processing " & crk.Name.Replace(crk.Extension, "") & "  " & GetType(ColorChannels).GetEnumName(eval) & " &  alphachannels")
-            roughimgcount += 1
-            cthread.Start(New Object() {imgtosplit.Clone, crk.Name.Replace(crk.Extension, "") & " " & GetType(ColorChannels).GetEnumName(eval) & ".png", eval, False, curimglist})
-            If grabcoloralphas And Not usecolormatrix Then
-                roughimgcount += 1
-
-                Threading.ThreadPool.QueueUserWorkItem(AddressOf splitIntochannels, New Object() {imgtosplit.Clone, crk.Name.Replace(crk.Extension, "") & " " & GetType(ColorChannels).GetEnumName(eval) & " coloralpha.png", eval, True, curimglist})
-            End If
-
-
-        Next
-
-        While ((curimglist.Count <> roughimgcount) Or (roughimgcount = 1))
-            Threading.Thread.Sleep(250)
         End While
-
-
-        If curimglist.Count > 1 Then
-            If Not nozip Then
-                Console.WriteLine("Writing " & crk.Name.Replace(crk.Extension, "") & "Zip")
-                Using pzip As New IO.FileStream(crk.FullName.Replace(crk.Extension, ".zip"), IO.FileMode.Create)
-                    Dim zfile As New IO.Compression.ZipArchive(pzip, IO.Compression.ZipArchiveMode.Create)
-                    Dim cim As IEnumerator = curimglist.GetEnumerator
-                    While cim.MoveNext
-                        If cim.Current.value Is Nothing Then
-                            Continue While
-                        End If
-
-                        Dim crx As IO.Compression.ZipArchiveEntry = zfile.CreateEntry(cim.Current.key)
-
-                        Using crtfile As IO.FileStream = IO.File.OpenRead(cim.Current.value)
-                            Dim ffilestr As IO.Stream = crx.Open
-                            crtfile.CopyTo(ffilestr)
-                            ffilestr.Flush()
-                            ffilestr.Close()
-                        End Using
-                        Try
-                            IO.File.Delete(cim.Current.value)
-                        Catch ex As Exception
-
-                        End Try
-
-                    End While
-                    zfile.Dispose()
-                    pzip.Close()
-                    pzip.Dispose()
-                End Using
-                Console.WriteLine(crk.Name.Replace(crk.Extension, "") & "Zip Done")
-            Else
-                Dim cim As IEnumerator = curimglist.GetEnumerator
-                Console.WriteLine("copying files of " & crk.Name.Replace(crk.Extension, ""))
-                While cim.MoveNext
-                    Try
-                        IO.File.Move(cim.Current.value, crk.FullName.Replace(crk.Name, cim.Current.key))
-                    Catch ex As Exception
-
-                    End Try
-                End While
-            End If
-        End If
-
-        runningthreads -= 1
-    End Sub
+        Return Nothing
+    End Function
 
     Function convertToCMYKpercent(rgba As Drawing.Color) As SortedList
         Dim returnval As New SortedList
@@ -721,6 +303,596 @@
         Return check
     End Function
 
+    Private Function GetEncoder(ByVal format As Drawing.Imaging.ImageFormat) As Drawing.Imaging.ImageCodecInfo
+
+
+        For Each codec As Drawing.Imaging.ImageCodecInfo In Drawing.Imaging.ImageCodecInfo.GetImageDecoders()
+            If codec.FormatID = format.Guid Then
+                Return codec
+            End If
+        Next
+        Return Nothing
+
+    End Function
+
+    Function regexreplace(searchpattern As String, inputstring As String, replacement As String, regexflags As Text.RegularExpressions.RegexOptions) As String
+        Dim txr As New Text.RegularExpressions.Regex(searchpattern, regexflags)
+        Return txr.Replace(inputstring, replacement)
+    End Function
+
+    Public Function getMime(file As IO.Stream) As SortedList
+        Dim gr As New SortedList
+        Dim cbyt(20) As Byte
+        Dim mimestring As String = ""
+        gr.Add("mime", "")
+        gr.Add("ext", "")
+        file.Position = 0
+        file.Read(cbyt, 0, cbyt.Length - 1)
+
+
+
+        Using xrx As New IO.MemoryStream(cbyt)
+            Using rxik As New IO.StreamReader(xrx)
+                mimestring = rxik.ReadToEnd
+            End Using
+        End Using
+
+        file.Position = 0
+
+        If System.Text.RegularExpressions.Regex.IsMatch(mimestring, "jfif", System.Text.RegularExpressions.RegexOptions.IgnoreCase) Then
+            gr("mime") = "JPEG"
+            gr("ext") = ".jpg"
+        End If
+        If System.Text.RegularExpressions.Regex.IsMatch(mimestring, "png", System.Text.RegularExpressions.RegexOptions.IgnoreCase) Then
+            gr("mime") = "png"
+            gr("ext") = ".png"
+        End If
+        If System.Text.RegularExpressions.Regex.IsMatch(mimestring, "gif", System.Text.RegularExpressions.RegexOptions.IgnoreCase) Then
+            gr("mime") = "gif"
+            gr("ext") = ".gif"
+        End If
+        If System.Text.RegularExpressions.Regex.IsMatch(mimestring, "svg", System.Text.RegularExpressions.RegexOptions.IgnoreCase) Then
+            gr("mime") = "svg"
+            gr("ext") = ".svg"
+        End If
+
+        Return gr
+    End Function
+
+    Public Function getMime(file As String) As SortedList
+        Dim gr As New SortedList
+        If IO.File.Exists(file) Then
+            Using rxp As New IO.FileStream(file, IO.FileMode.Open)
+                gr = getMime(rxp)
+                rxp.Close()
+            End Using
+        End If
+        Return gr
+    End Function
+
+    Sub processCommandLineargs(args As String())
+
+        Dim rex As New Text.RegularExpressions.Regex("^[A-z]\-?\#?[a-fA-F0-9]+\%?")
+        If args(0).IndexOf("-") = 0 Then
+            Dim allowstring As String = args(0)
+            skipuricheck = True
+            grabcoloralphas = False
+            Try
+
+                If Windows.Forms.Clipboard.ContainsImage And args(0).IndexOf("-") = 0 And args(0).IndexOf("C") > -1 Then
+
+
+                    If Not IO.Directory.Exists(My.Application.Info.DirectoryPath & "\imgdownloads") Then
+                        Try
+                            IO.Directory.CreateDirectory(My.Application.Info.DirectoryPath & "\imgdownloads")
+                        Catch ex As Exception
+
+                        End Try
+
+                    End If
+
+                    Dim curim As Integer = 0
+                    While (IO.File.Exists(My.Application.Info.DirectoryPath & "\imgdownloads\ClipIMG" & curim & ".bmp"))
+                        curim += 1
+                    End While
+                    Dim stxb As New Drawing.Bitmap(Windows.Forms.Clipboard.GetImage)
+                    stxb.Save(My.Application.Info.DirectoryPath & "\imgdownloads\ClipIMG" & curim & ".bmp")
+                    stxb.Dispose()
+                    allowstring = allowstring.Replace("C", "")
+                    Dim stp As New ArrayList
+                    stp.Add(allowstring)
+                    For fxo As Integer = 1 To args.Count - 1
+                        stp.Add(args(fxo))
+                    Next
+                    stp.Add(My.Application.Info.DirectoryPath & "\imgdownloads\ClipIMG" & curim & ".bmp")
+                    processCommandLineargs(stp.ToArray(GetType(String)))
+                    Exit Sub
+                End If
+
+                If Windows.Forms.Clipboard.ContainsText And args(0).IndexOf("-") = 0 And args(0).IndexOf("C") > -1 Then
+                    Dim cliptext As String = Windows.Forms.Clipboard.GetText
+                    If cliptext.ToUpper.IndexOf("BASE64") > -1 Then
+                        Dim datastart As String = cliptext.Substring(cliptext.IndexOf(","))
+                        Dim bstring As Byte() = Convert.FromBase64CharArray(datastart, 0, datastart.Length - 1)
+                        Dim stxp As New IO.MemoryStream(bstring)
+                        Dim mimetype As SortedList = getMime(stxp)
+                    End If
+                End If
+            Catch ex As Exception
+                Exit Sub
+            End Try
+
+
+            If allowstring.IndexOf("f") > -1 Then
+                gnozip = True
+                allowstring = allowstring.Replace("f", "")
+            End If
+            If allowstring.IndexOf("A") > -1 Then
+                grabcoloralphas = True
+                allowstring = allowstring.Replace("A", "")
+            End If
+
+            For Each itm As String In allowstring
+
+                Select Case itm
+
+                    Case "M"
+                        usecolormatrix = True
+                    Case "d"
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.alphanoise))
+                    Case "a"
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.alpha))
+
+                    Case "c"
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.cyan))
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.cyanwhite))
+                    Case "L"
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.colorize))
+                    Case "m"
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.magenta))
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.magentawhite))
+                    Case "y"
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.yellow))
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.yellowwhite))
+                    Case "k"
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.black))
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.blackwhite))
+                    Case "r"
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.redblack))
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.redwhite))
+
+                    Case "g"
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.greenblack))
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.greenwhite))
+                    Case "b"
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.blueblack))
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.bluewhite))
+                    Case "u"
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.hue))
+                    Case "t"
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.brightness))
+                    Case "T"
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.saturation))
+                    Case "e"
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.grayscale))
+
+                    Case "i"
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.inverted))
+                    Case "o"
+                        copyonlyoriginals = True
+                    Case "S"
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.threshold))
+                    Case "F"
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.colorshift))
+                    Case "n"
+                        If allowstring.IndexOf("n") = 1 And allowstring.Length = 2 Then
+                            allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.linedraw))
+                            grabcoloralphas = True
+                        Else
+                            Console.WriteLine("Draw line must be used alone, ignoring command")
+
+                        End If
+                    Case "R"
+                        If allowstring.IndexOf("R") = 1 And allowstring.Length = 2 Then
+                            allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.rotateimage))
+                        Else
+                            Console.WriteLine("Rotate must be used alone, ignoring command")
+
+                        End If
+                    Case "x"
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.exposureadjust))
+                    Case "G"
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.colorgut))
+                    Case "z"
+                        Dim fx As New Random
+                        colorizeby = Drawing.Color.FromArgb(fx.Next(0, 255), fx.Next(0, 255), fx.Next(0, 255))
+                        colorshiftby = colorizeby
+                    Case "p"
+
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.transparency))
+
+
+                    Case "s"
+                        If allowstring.IndexOf("s") = 1 And allowstring.Length = 2 Then
+                            allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.scanlines))
+                        Else
+                            Console.WriteLine("Scanlines must be used alone, ignoring command")
+
+                        End If
+
+                    Case "K"
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.blinds))
+
+                End Select
+            Next
+
+        End If
+
+        For Each itm As String In args
+
+
+            If rex.IsMatch(itm) Then
+                Dim bsub As String = itm.Substring(1)
+                bsub = bsub.Replace("%", "")
+                Dim firstlet As String = itm(0)
+                If bsub.IndexOf("#") = -1 Then
+
+
+                    Select Case firstlet
+
+                        Case "b"
+                            Try
+                                floatbrightadjust = Double.Parse(bsub) / 100
+
+                            Catch ex As Exception
+
+                            End Try
+
+
+                        Case "r"
+                            Try
+                                linereachrange = Integer.Parse(bsub)
+
+                                If linereachrange > 200 Then
+                                    onlyoneimageset = True
+                                    Console.WriteLine("warning: Reach exceeded safe limits for system stabilty, capping at one image only")
+                                End If
+
+                                If linereachrange < 1 Then
+                                    linereachrange = 10
+                                End If
+                            Catch ex As Exception
+                                linereachrange = 10
+                            End Try
+                        Case "t"
+                            Try
+                                floatbrighttolerance = Double.Parse(bsub) / 100
+
+                            Catch ex As Exception
+
+                            End Try
+                        Case "H"
+                            Try
+                                Try
+                                    maxthresh = Byte.Parse(bsub)
+                                Catch ex As Exception
+
+                                End Try
+                            Catch ex As Exception
+
+                            End Try
+                        Case "h"
+                            Try
+                                minthresh = Byte.Parse(bsub)
+                            Catch ex As Exception
+
+                            End Try
+                        Case "R"
+                            Try
+                                rotationdegree = Single.Parse(bsub)
+                            Catch ex As Exception
+
+                            End Try
+                        Case "o"
+                            Try
+                                imgtransparency = Double.Parse(bsub) / 100
+                            Catch ex As Exception
+
+                            End Try
+                        Case "n"
+                            Try
+                                alphanoiserange = Integer.Parse(bsub)
+                            Catch ex As Exception
+
+                            End Try
+                        Case "s"
+                            Try
+                                scanlinepower = Double.Parse(bsub) / 100
+                            Catch ex As Exception
+
+                            End Try
+                        Case "S"
+                            Try
+                                scanlineeveryrow = Integer.Parse(bsub)
+                            Catch ex As Exception
+
+                            End Try
+                        Case "w"
+                            Try
+                                scanlinewidth = Integer.Parse(bsub)
+                            Catch ex As Exception
+
+                            End Try
+                    End Select
+                Else
+
+
+
+                    bsub = bsub.Replace("-", "")
+
+                    Dim bcolor As Drawing.Color = Drawing.Color.Black
+                    Try
+                        Dim rval As Integer = Integer.Parse(bsub.Substring(1, 2), Globalization.NumberStyles.HexNumber)
+                        Dim gval As Integer = Integer.Parse(bsub.Substring(3, 2), Globalization.NumberStyles.HexNumber)
+                        Dim bval As Integer = Integer.Parse(bsub.Substring(5, 2), Globalization.NumberStyles.HexNumber)
+                        bcolor = Drawing.Color.FromArgb(rval, gval, bval)
+                    Catch ex As Exception
+
+                    End Try
+
+
+                    Select Case firstlet
+                        Case "c"
+                            usenegativecolorize = IIf(itm.IndexOf("-") > -1, True, False)
+                            colorizeby = bcolor
+                        Case "C"
+                            usenegativecolorshift = IIf(itm.IndexOf("-") > -1, True, False)
+                            colorshiftby = bcolor
+
+
+                    End Select
+                End If
+
+                Continue For
+
+            End If
+
+            If IO.Directory.Exists(itm) Then
+                skipuricheck = True
+                Dim cdir As New IO.DirectoryInfo(itm)
+                For Each dfile As IO.FileInfo In cdir.GetFiles("*.*")
+                    Select Case dfile.Extension.ToLower
+                        Case ".png", ".jpg", ".bmp"
+                            If dfile.Exists Then
+                                Try
+
+                                    Threading.ThreadPool.QueueUserWorkItem(AddressOf splitImage, New Object() {dfile.FullName, allowonly, gnozip})
+                                Catch ex As Exception
+
+                                End Try
+
+                            End If
+                        Case ".arg"
+                            Threading.ThreadPool.QueueUserWorkItem(AddressOf processCommandLineargs, IO.File.ReadAllLines(dfile.FullName))
+                    End Select
+
+                Next
+            End If
+            If IO.File.Exists(itm) Then
+                skipuricheck = True
+                Dim ctxo As New IO.FileInfo(itm)
+                Select Case ctxo.Extension.ToLower
+                    Case ".png", ".jpg", ".bmp"
+                        Try
+
+                            Threading.ThreadPool.QueueUserWorkItem(AddressOf splitImage, New Object() {itm, allowonly, gnozip})
+                        Catch ex As Exception
+
+                        End Try
+                    Case ".arg"
+                        Try
+                            Dim ostring As String() = IO.File.ReadAllLines(itm)
+                            Dim carlist As New ArrayList
+                            For Each itmx As String In ostring
+                                If itmx.IndexOf("-") <> 0 Then
+                                    carlist.Add(itmx)
+                                End If
+                            Next
+                            processCommandLineargs(carlist.ToArray(GetType(String)))
+                        Catch ex As Exception
+
+                        End Try
+                        Continue For
+                End Select
+
+
+            End If
+            If skipuricheck Then
+                skipuricheck = False
+                Continue For
+            End If
+            Try
+                Dim sct As New Uri(itm)
+                Dim tfile As String = getRealTempfile()
+                Using srp As New Net.WebClient
+                    srp.BaseAddress = sct.ToString
+                    Dim outfilename As String = sct.OriginalString.Substring(sct.OriginalString.LastIndexOf("/") + 1)
+                    outfilename = regexreplace("[\W]+", outfilename, "-", Text.RegularExpressions.RegexOptions.IgnoreCase)
+
+                    Try
+                        srp.DownloadFile(sct.ToString, tfile)
+
+                        Dim mimety As SortedList = getMime(tfile)
+                        If Not mimety.ContainsKey("ext") Then
+                            Try
+                                IO.File.Delete(tfile)
+
+                            Catch ex As Exception
+
+                            End Try
+                            srp.Dispose()
+                            Continue For
+                        End If
+                        outfilename = outfilename & mimety("ext")
+                        If Not IO.Directory.Exists(My.Application.Info.DirectoryPath & "\imgdownloads") Then
+                            IO.Directory.CreateDirectory(My.Application.Info.DirectoryPath & "\imgdownloads")
+                        End If
+                        My.Computer.FileSystem.MoveFile(tfile, My.Application.Info.DirectoryPath & "\imgdownloads\" & outfilename, True)
+                        Console.WriteLine(My.Application.Info.DirectoryPath & "\imgdownloads\" & outfilename & " created from url")
+                        If Not copyonlyoriginals Then
+
+
+                            Threading.ThreadPool.QueueUserWorkItem(AddressOf splitImage, New Object() {My.Application.Info.DirectoryPath & "\imgdownloads\" & outfilename, allowonly, gnozip})
+                        End If
+                    Catch ex As Exception
+                        Console.WriteLine("ERROR: " & ex.Message)
+                    End Try
+
+                End Using
+            Catch ex As Exception
+
+            End Try
+
+        Next
+    End Sub
+
+    Sub processCommandLineargs(args As Object)
+
+        Dim strarg As String() = args
+        processCommandLineargs(strarg)
+    End Sub
+
+    Sub splitImage(imgob As Object)
+
+        If onlyoneimageset Then
+            If oneimageused Then
+                Console.WriteLine("Cap reached ignoring process of " & imgob(0))
+                Exit Sub
+            Else
+                oneimageused = True
+            End If
+        End If
+
+        Dim img As String = imgob(0)
+        Dim allowances As ArrayList = imgob(1)
+        Dim nozip As Boolean = imgob(2)
+        runningthreads += 1
+        Dim imgtosplit As New Drawing.Bitmap(img)
+        Dim crk As New IO.FileInfo(img)
+        Dim curimglist As New SortedList
+        Dim roughimgcount As Integer = 1
+
+        curimglist.Add(crk.Name.Replace(crk.Extension, " original " & crk.Extension), getRealTempfile())
+
+
+        Try
+            While IO.File.Exists(curimglist.GetByIndex(0))
+                curimglist(curimglist.GetKey(0)) = getRealTempfile()
+                Try
+                    IO.File.Delete(curimglist.GetByIndex(0))
+                Catch ex As Exception
+
+                End Try
+            End While
+
+            My.Computer.FileSystem.CopyFile(img, curimglist.GetByIndex(0))
+        Catch ex As Exception
+
+        End Try
+
+        Console.WriteLine("Processing " & img)
+        For Each eval As Integer In GetType(ColorChannels).GetEnumValues
+
+            If allowances.Count > 0 Then
+                If Not allowances.Contains(GetType(ColorChannels).GetEnumName(eval)) Then
+                    Continue For
+                End If
+                If allowances.Count > 1 Then
+                    Select Case eval
+                        Case ColorChannels.scanlines, ColorChannels.linedraw, ColorChannels.rotateimage
+                            Continue For
+                    End Select
+                End If
+            Else
+                Select Case eval
+                    Case ColorChannels.scanlines, ColorChannels.linedraw, ColorChannels.rotateimage
+                        Continue For
+                End Select
+            End If
+
+
+
+            Dim cthread As New Threading.Thread(AddressOf splitIntochannels)
+
+            If usecolormatrix Then
+                cthread = New Threading.Thread(AddressOf splitIntoChannelsWithMatrix)
+            End If
+
+
+            Console.WriteLine("Processing " & crk.Name.Replace(crk.Extension, "") & "  " & GetType(ColorChannels).GetEnumName(eval) & " &  alphachannels")
+            roughimgcount += 1
+            cthread.Start(New Object() {imgtosplit.Clone, crk.Name.Replace(crk.Extension, "") & " " & GetType(ColorChannels).GetEnumName(eval) & ".png", eval, False, curimglist})
+            If grabcoloralphas And Not usecolormatrix Then
+                roughimgcount += 1
+
+                Threading.ThreadPool.QueueUserWorkItem(AddressOf splitIntochannels, New Object() {imgtosplit.Clone, crk.Name.Replace(crk.Extension, "") & " " & GetType(ColorChannels).GetEnumName(eval) & " coloralpha.png", eval, True, curimglist})
+            End If
+
+
+        Next
+
+        While ((curimglist.Count <> roughimgcount) Or (roughimgcount = 1))
+            Threading.Thread.Sleep(250)
+        End While
+
+
+        If curimglist.Count > 1 Then
+            If Not nozip Then
+                Console.WriteLine("Writing " & crk.Name.Replace(crk.Extension, "") & "Zip")
+                Using pzip As New IO.FileStream(crk.FullName.Replace(crk.Extension, ".zip"), IO.FileMode.Create)
+                    Dim zfile As New IO.Compression.ZipArchive(pzip, IO.Compression.ZipArchiveMode.Create)
+                    Dim cim As IEnumerator = curimglist.GetEnumerator
+                    While cim.MoveNext
+                        If cim.Current.value Is Nothing Then
+                            Continue While
+                        End If
+
+                        Dim crx As IO.Compression.ZipArchiveEntry = zfile.CreateEntry(cim.Current.key)
+
+                        Using crtfile As IO.FileStream = IO.File.OpenRead(cim.Current.value)
+                            Dim ffilestr As IO.Stream = crx.Open
+                            crtfile.CopyTo(ffilestr)
+                            ffilestr.Flush()
+                            ffilestr.Close()
+                        End Using
+                        Try
+                            IO.File.Delete(cim.Current.value)
+                        Catch ex As Exception
+
+                        End Try
+
+                    End While
+                    zfile.Dispose()
+                    pzip.Close()
+                    pzip.Dispose()
+                End Using
+                Console.WriteLine(crk.Name.Replace(crk.Extension, "") & "Zip Done")
+            Else
+                Dim cim As IEnumerator = curimglist.GetEnumerator
+                Console.WriteLine("copying files of " & crk.Name.Replace(crk.Extension, ""))
+                While cim.MoveNext
+                    Try
+                        IO.File.Move(cim.Current.value, crk.FullName.Replace(crk.Name, cim.Current.key))
+                    Catch ex As Exception
+
+                    End Try
+                End While
+            End If
+        End If
+
+        runningthreads -= 1
+    End Sub
+
     Sub splitIntochannels(cob As Object)
 
         Dim pictosplit As Drawing.Bitmap = cob(0)
@@ -733,13 +905,21 @@
         Dim tfile As String = getRealTempfile()
         Dim blackcount As Integer = 0
         Dim dgui As Drawing.Graphics = Drawing.Graphics.FromImage(writecolor)
-        If usecoloralpha Or chanselect = ColorChannels.colorgut Or chanselect = ColorChannels.rotateimage Then
+        Select Case chanselect
+            Case ColorChannels.colorgut, ColorChannels.rotateimage, ColorChannels.transparency, ColorChannels.alphanoise, ColorChannels.blinds
                 writecolor.MakeTransparent()
-            Else
-                dgui.FillRectangle(Drawing.Brushes.White, 0, 0, writecolor.Width, writecolor.Height)
-            End If
+            Case Else
+                If usecoloralpha Then
+                    writecolor.MakeTransparent()
+                Else
+                    dgui.FillRectangle(Drawing.Brushes.White, 0, 0, writecolor.Width, writecolor.Height)
+                End If
+        End Select
 
-            For y As Integer = 0 To pictosplit.Height - 1
+
+
+        Dim txrand As New Random
+        For y As Integer = 0 To pictosplit.Height - 1
                 For x As Integer = 0 To pictosplit.Width - 1
 
                     Dim cpix As Drawing.Color = pictosplit.GetPixel(x, y)
@@ -990,22 +1170,94 @@
                                 writecolor.SetPixel(x, y, Drawing.Color.FromArgb(0, cpix))
                             End If
 
-                        Case ColorChannels.rotateimage
+                    Case ColorChannels.rotateimage
+                        Dim floatsize As New Drawing.PointF(pictosplit.Width, pictosplit.Height)
+                        Dim center As New Drawing.Point(Convert.ToSingle(floatsize.X / 2), Convert.ToInt32(floatsize.Y / 2))
+                        writecolor.Dispose()
+                        writecolor = New Drawing.Bitmap(Convert.ToInt32(floatsize.X * 1.5), Convert.ToInt32(floatsize.Y * 1.5))
+                        dgui.Dispose()
+                        dgui = Drawing.Graphics.FromImage(writecolor)
 
-                        If Convert.ToInt32(rotationdegree / 90) <> 2 Then
+                        writecolor.MakeTransparent()
+                        dgui.TranslateTransform(writecolor.Width / 2, writecolor.Height / 2)
+                        dgui.RotateTransform(rotationdegree)
+                        dgui.DrawImage(pictosplit, New Drawing.Point(-1 * ((writecolor.Width / 2) - floatsize.X), -1 * ((writecolor.Height / 2) - floatsize.Y)))
+
+                        y = pictosplit.Height
+                        Exit For
+                    Case ColorChannels.transparency
+                        If usecoloralpha Then
+                            imglist.Add(savename, Nothing)
                             writecolor.Dispose()
-                            writecolor = New Drawing.Bitmap(pictosplit.Height, pictosplit.Width)
                             dgui.Dispose()
-                            dgui = Drawing.Graphics.FromImage(writecolor)
+                            Exit Sub
                         End If
 
-                        dgui.TranslateTransform(Convert.ToSingle(writecolor.Width / 2), Convert.ToSingle(writecolor.Height / 2))
-                            dgui.RotateTransform(rotationdegree)
-                            dgui.DrawImage(pictosplit, New Drawing.Point(Convert.ToSingle(-1 * (writecolor.Width / 2)), Convert.ToSingle(-1 * (writecolor.Height / 2))))
+                        Dim cpixAlpha As Integer = cpix.A
+                        Dim imgtran As Integer = -255 * imgtransparency
+                        cpixAlpha += imgtran
+                        If cpixAlpha > 255 Then
+                            cpixAlpha = 255
+                        End If
+                        If cpixAlpha < 0 Then
+                            cpixAlpha = 0
+                        End If
 
-                            y = pictosplit.Height
-                            Exit For
-                        Case Else
+                        writecolor.SetPixel(x, y, Drawing.Color.FromArgb(cpixAlpha, cpix.R, cpix.G, cpix.B))
+                    Case ColorChannels.alphanoise
+                        If usecoloralpha Then
+                            imglist.Add(savename, Nothing)
+                            writecolor.Dispose()
+                            dgui.Dispose()
+                            Exit Sub
+                        End If
+
+                        Dim maxskip As Integer = 0
+
+                        maxskip = txrand.Next(0, alphanoiserange)
+                        Try
+                            writecolor.SetPixel(x, y, cpix)
+                        Catch ex As Exception
+
+                        End Try
+
+
+                        x += maxskip
+                    Case ColorChannels.scanlines
+                        If usecoloralpha Then
+                            imglist.Add(savename, Nothing)
+                            writecolor.Dispose()
+                            dgui.Dispose()
+                            Exit Sub
+                        End If
+                        Dim dxip As Drawing.Bitmap = pictosplit.Clone
+                        dgui.DrawImage(dxip, New Drawing.PointF(0, 0))
+
+                        For yline As Integer = 0 To writecolor.Height - 1
+                            If yline Mod scanlineeveryrow = 0 And yline > scanlineeveryrow - 1 Then
+                                dgui.DrawLine(New Drawing.Pen(Drawing.Color.FromArgb(255 * (scanlinepower / 2), 255, 255, 255), scanlinewidth), New Drawing.Point(0, yline - scanlinewidth), New Drawing.Point(writecolor.Width - 1, yline - scanlinewidth))
+                                dgui.DrawLine(New Drawing.Pen(Drawing.Color.FromArgb(255 * scanlinepower, 0, 0, 0), scanlinewidth), New Drawing.Point(0, yline), New Drawing.Point(writecolor.Width - 1, yline))
+                            End If
+
+                        Next
+                        dxip.Dispose()
+                        y = writecolor.Height
+                        Exit For
+                    Case ColorChannels.blinds
+                        If usecoloralpha Then
+                            imglist.Add(savename, Nothing)
+                            writecolor.Dispose()
+                            dgui.Dispose()
+                            Exit Sub
+                        End If
+                        Dim gxp As New Random
+                        Try
+                            writecolor.SetPixel(x, y, cpix)
+                        Catch ex As Exception
+
+                        End Try
+                        x += gxp.Next(0, 2)
+                    Case Else
                             imglist.Add(savename, Nothing)
                             writecolor.Dispose()
                             dgui.Dispose()
@@ -1107,98 +1359,4 @@
         End Try
     End Sub
 
-    Private Function GetEncoder(ByVal format As Drawing.Imaging.ImageFormat) As Drawing.Imaging.ImageCodecInfo
-
-
-        For Each codec As Drawing.Imaging.ImageCodecInfo In Drawing.Imaging.ImageCodecInfo.GetImageDecoders()
-            If codec.FormatID = format.Guid Then
-                Return codec
-            End If
-        Next
-        Return Nothing
-
-    End Function
-
-    Function regexreplace(searchpattern As String, inputstring As String, replacement As String, regexflags As Text.RegularExpressions.RegexOptions) As String
-        Dim txr As New Text.RegularExpressions.Regex(searchpattern, regexflags)
-        Return txr.Replace(inputstring, replacement)
-    End Function
-
-    Public Function getMime(file As IO.Stream) As SortedList
-        Dim gr As New SortedList
-        Dim cbyt(20) As Byte
-        Dim mimestring As String = ""
-        gr.Add("mime", "")
-        gr.Add("ext", "")
-        file.Position = 0
-        file.Read(cbyt, 0, cbyt.Length - 1)
-
-
-
-        Using xrx As New IO.MemoryStream(cbyt)
-            Using rxik As New IO.StreamReader(xrx)
-                mimestring = rxik.ReadToEnd
-            End Using
-        End Using
-
-        file.Position = 0
-
-        If System.Text.RegularExpressions.Regex.IsMatch(mimestring, "jfif", System.Text.RegularExpressions.RegexOptions.IgnoreCase) Then
-            gr("mime") = "JPEG"
-            gr("ext") = ".jpg"
-        End If
-        If System.Text.RegularExpressions.Regex.IsMatch(mimestring, "png", System.Text.RegularExpressions.RegexOptions.IgnoreCase) Then
-            gr("mime") = "png"
-            gr("ext") = ".png"
-        End If
-        If System.Text.RegularExpressions.Regex.IsMatch(mimestring, "gif", System.Text.RegularExpressions.RegexOptions.IgnoreCase) Then
-            gr("mime") = "gif"
-            gr("ext") = ".gif"
-        End If
-        If System.Text.RegularExpressions.Regex.IsMatch(mimestring, "svg", System.Text.RegularExpressions.RegexOptions.IgnoreCase) Then
-            gr("mime") = "svg"
-            gr("ext") = ".svg"
-        End If
-
-        Return gr
-    End Function
-
-    Public Function getRealTempfile() As String
-        While True
-            Dim fxv As String = My.Computer.FileSystem.GetTempFileName
-            Threading.Thread.Sleep(200)
-            If IO.File.Exists(fxv) Then
-                Return fxv
-            Else
-                Try
-                    IO.File.Delete(fxv)
-                Catch ex As Exception
-
-                End Try
-            End If
-        End While
-        Return Nothing
-    End Function
-
-    Public Function getMime(file As String) As SortedList
-        Dim gr As New SortedList
-        If IO.File.Exists(file) Then
-            Using rxp As New IO.FileStream(file, IO.FileMode.Open)
-                gr = getMime(rxp)
-                rxp.Close()
-            End Using
-        End If
-        Return gr
-    End Function
-
-    Sub dostartercleanup()
-        Dim dirpath As New IO.DirectoryInfo(My.Computer.FileSystem.SpecialDirectories.Temp)
-        For Each file As IO.FileInfo In dirpath.GetFiles("*.tmp")
-            Try
-                file.Delete()
-            Catch ex As Exception
-
-            End Try
-        Next
-    End Sub
 End Module
