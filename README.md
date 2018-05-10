@@ -8,7 +8,7 @@ ChannelSplit (options) (command modifers) arg1-argx
 
 Args may be individual image, files, argument files,directories or web url, zipfiles if chosen or individual files will be placed in the same folder as original image
 
-Images that were downloaded from url and clipboard images will be saved to ThisAppLocation\imgdownloads
+Images that were downloaded from url and clipboard images will be saved to J:\visual studio 2017\projects 17\ChannelSplit\ChannelSplit\bin\Debug\imgdownloads
 
 -C Uses Image From clipboad
 
@@ -80,7 +80,9 @@ Images that were downloaded from url and clipboard images will be saved to ThisA
 
 //future
 
-rotate image, currently buggy
+-R rotate image, currently buggy
+
+-D Gradient fade, buggy currently, unfinished
 
 
 
@@ -109,6 +111,10 @@ SX sets to draw scanlines at every X rows
 wX sets the width of scanlines in X pixels high
 
 nX sets density of stippling, X is possible white space distance between pixels, though a pixel may be drawn between 0-X randomly
+
+hX sets the min threshold for option -G and -S, where X is 0-255
+
+HX sets the max threshold for option -G and -S, where X is 0-255
 
 [argument files]
 
