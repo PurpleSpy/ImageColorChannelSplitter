@@ -30,12 +30,18 @@
     Property scanlineeveryrow As Integer = 3
     Property scanlinerotation As Integer = 0
     Property mustbeusedalone As New ArrayList
+    Property slidefadestart As Double = 0.5
+    Property slidefadeend As Double = 1.0
+    Property slidefadestarttransparency As Double = 0.0
+    Property slidefadeendtransparency As Double = 1.0
+    Property fadetransparencyrotation As Single = 0.0
 
     Sub Main()
 
         AddHandler Console.CancelKeyPress, AddressOf controlcpressed
         mustbeusedalone.Add(ColorChannels.linedraw)
         mustbeusedalone.Add(ColorChannels.scanlines)
+        mustbeusedalone.Add(ColorChannels.fade)
 
 
         If My.Application.CommandLineArgs.Count = 0 Then
@@ -111,6 +117,7 @@
         transparency
         scanlines
         blinds
+        fade
     End Enum
 
     Sub writearghelp()
@@ -522,6 +529,13 @@
 
                     Case "K"
                         allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.blinds))
+                    Case "D"
+                        If allowstring.IndexOf("D") = 1 And allowstring.Length = 2 Then
+                            allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.fade))
+                        Else
+                            Console.WriteLine("Fade must be used alone, ignoring command")
+
+                        End If
 
                 End Select
             Next
@@ -1257,6 +1271,17 @@
 
                         End Try
                         x += gxp.Next(0, 2)
+
+                    Case ColorChannels.fade
+                        Dim cxp As New Drawing.Drawing2D.LinearGradientBrush(New Drawing.PointF(0, 0), New Drawing.Point(writecolor.Width, writecolor.Height), Drawing.Color.FromArgb(255, 0, 0, 0), Drawing.Color.FromArgb(0, 0, 0, 0))
+
+                        dgui.DrawImage(pictosplit, New Drawing.PointF(0, 0))
+                        cxp.MultiplyTransform(dgui.Transform)
+                        dgui.FillRectangle(cxp, pictosplit.GetBounds(Drawing.GraphicsUnit.Pixel))
+
+                        y = writecolor.Height
+                        Exit For
+
                     Case Else
                             imglist.Add(savename, Nothing)
                             writecolor.Dispose()

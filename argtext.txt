@@ -39,7 +39,8 @@ Images that were downloaded from url and clipboard images will be saved to %APPL
 -s adds scanlines to image, width of scanlines, opacity of scanlines, scanline every X may all be set with arguments
 -n Draws a outline of image, threshold for brightness and pixel sample size must be set, because of how long it takes this option must be specifed alone
 //future
-rotate image, currently buggy
+-R rotate image, currently buggy
+-D Gradient fade, buggy currently, unfinished
 
 [command modifiers]
 command modifiers are how you specify settings for the filters they are just added to arguments
@@ -54,6 +55,8 @@ s100-0% sets scanline opacity
 SX sets to draw scanlines at every X rows
 wX sets the width of scanlines in X pixels high
 nX sets density of stippling, X is possible white space distance between pixels, though a pixel may be drawn between 0-X randomly
+hX sets the min threshold for option -G and -S, where X is 0-255
+HX sets the max threshold for option -G and -S, where X is 0-255
 [argument files]
 Argument files are just a list of files in a text file, so it would be file,url,or directory then return one per line, no options or command modifiers can be specified argument file
 ....how to make argument file...
