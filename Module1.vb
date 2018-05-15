@@ -35,6 +35,10 @@
     Property slidefadestarttransparency As Double = 0.0
     Property slidefadeendtransparency As Double = 1.0
     Property fadetransparencyrotation As Single = 0.0
+    Property pixelationrange As Integer = 2
+    Property isloaded As Boolean = False
+    Property rotationblurvariance As Integer = 10
+    Property rotationblurpasses As Integer = 15
 
     Sub Main()
 
@@ -42,6 +46,10 @@
         mustbeusedalone.Add(ColorChannels.linedraw)
         mustbeusedalone.Add(ColorChannels.scanlines)
         mustbeusedalone.Add(ColorChannels.fade)
+        mustbeusedalone.Add(ColorChannels.rotateimage)
+        mustbeusedalone.Add(ColorChannels.crosshatch)
+        mustbeusedalone.Add(ColorChannels.rotationblur)
+
 
 
         If My.Application.CommandLineArgs.Count = 0 Then
@@ -64,7 +72,7 @@
             Threading.Thread.Sleep(8000)
             maxrunthreads = runningthreads
 
-            While runningthreads > 0
+            While runningthreads > 0 Or Not isloaded
                 If maxrunthreads < runningthreads Then
                     maxrunthreads = runningthreads
                 End If
@@ -118,6 +126,10 @@
         scanlines
         blinds
         fade
+        crosshatch
+        pixelation
+        pallette
+        rotationblur
     End Enum
 
     Sub writearghelp()
@@ -518,7 +530,8 @@
 
                         allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.transparency))
 
-
+                    Case "P"
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.pixelation))
                     Case "s"
                         If allowstring.IndexOf("s") = 1 And allowstring.Length = 2 Then
                             allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.scanlines))
@@ -537,6 +550,22 @@
 
                         End If
 
+                    Case "Z"
+                        If allowstring.IndexOf("Z") = 1 And allowstring.Length = 2 Then
+                            allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.crosshatch))
+                        Else
+                            Console.WriteLine("Crosshatch must be used alone, ignoring command")
+
+                        End If
+                    Case "I"
+                        If allowstring.IndexOf("I") = 1 And allowstring.Length = 2 Then
+                            allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.rotationblur))
+                        Else
+                            Console.WriteLine("RotationBlur must be used alone, ignoring command")
+
+                        End If
+                    Case "E"
+                        allowonly.Add(GetType(ColorChannels).GetEnumName(ColorChannels.pallette))
                 End Select
             Next
 
@@ -637,6 +666,29 @@
                             Catch ex As Exception
 
                             End Try
+                        Case "p"
+                            Try
+                                pixelationrange = Integer.Parse(bsub)
+                            Catch ex As Exception
+
+                            End Try
+                        Case "z"
+                            Using stx As New Windows.Forms.ColorDialog
+                                stx.AnyColor = True
+                                stx.FullOpen = True
+
+                                If stx.ShowDialog = Windows.Forms.DialogResult.OK Then
+                                    colorizeby = stx.Color
+                                End If
+                            End Using
+                        Case "Z"
+                            Using stx As New Windows.Forms.ColorDialog
+                                stx.AnyColor = True
+                                stx.FullOpen = True
+                                If stx.ShowDialog = Windows.Forms.DialogResult.OK Then
+                                    colorshiftby = stx.Color
+                                End If
+                            End Using
                     End Select
                 Else
 
@@ -717,6 +769,14 @@
 
                         End Try
                         Continue For
+                    Case ".zip"
+                        Try
+                            processCommandLineargs(extractZipfile(itm))
+                        Catch ex As Exception
+
+                        End Try
+                        Continue For
+
                 End Select
 
 
@@ -768,7 +828,10 @@
             End Try
 
         Next
+        isloaded = True
     End Sub
+
+
 
     Sub processCommandLineargs(args As Object)
 
@@ -776,6 +839,36 @@
         processCommandLineargs(strarg)
     End Sub
 
+    Function extractZipfile(path As String) As String()
+        Dim svc As New ArrayList
+        Dim uzippath As String = My.Application.Info.DirectoryPath & "\imgdownloads"
+        If IO.File.Exists(path) Then
+            Using xfer As New IO.Compression.ZipArchive(IO.File.Open(path, IO.FileMode.Open), IO.Compression.ZipArchiveMode.Read)
+                For Each ent As IO.Compression.ZipArchiveEntry In xfer.Entries
+                    Dim crx As New IO.FileInfo(ent.FullName)
+
+                    Select Case crx.Extension
+                        Case ".jpg", ".png", "bmp"
+                            If Not IO.File.Exists(uzippath & "\" & crx.Name) Then
+                                Dim xtxp As New IO.FileStream(uzippath & "\" & crx.Name, IO.FileMode.Create)
+                                ent.Open.CopyTo(xtxp)
+                                xtxp.Flush()
+                                xtxp.Close()
+                                svc.Add(uzippath & "\" & crx.Name)
+                            End If
+                    End Select
+
+
+                Next
+
+                xfer.Dispose()
+            End Using
+
+
+        End If
+
+        Return svc.ToArray(GetType(String))
+    End Function
     Sub splitImage(imgob As Object)
 
         If onlyoneimageset Then
@@ -823,13 +916,13 @@
                 End If
                 If allowances.Count > 1 Then
                     Select Case eval
-                        Case ColorChannels.scanlines, ColorChannels.linedraw, ColorChannels.rotateimage
+                        Case ColorChannels.scanlines, ColorChannels.linedraw, ColorChannels.rotateimage, ColorChannels.fade, ColorChannels.crosshatch
                             Continue For
                     End Select
                 End If
             Else
                 Select Case eval
-                    Case ColorChannels.scanlines, ColorChannels.linedraw, ColorChannels.rotateimage
+                    Case ColorChannels.scanlines, ColorChannels.linedraw, ColorChannels.rotateimage, ColorChannels.fade, ColorChannels.crosshatch
                         Continue For
                 End Select
             End If
@@ -920,7 +1013,7 @@
         Dim blackcount As Integer = 0
         Dim dgui As Drawing.Graphics = Drawing.Graphics.FromImage(writecolor)
         Select Case chanselect
-            Case ColorChannels.colorgut, ColorChannels.rotateimage, ColorChannels.transparency, ColorChannels.alphanoise, ColorChannels.blinds
+            Case ColorChannels.colorgut, ColorChannels.rotateimage, ColorChannels.transparency, ColorChannels.alphanoise, ColorChannels.blinds, ColorChannels.fade, ColorChannels.crosshatch
                 writecolor.MakeTransparent()
             Case Else
                 If usecoloralpha Then
@@ -1032,10 +1125,10 @@
                                     Dim colorizegreen As Integer = IIf(cpixsat - colorizeby.G < 0, 0, cpixsat - colorizeby.G)
                                     Dim colorizeblue As Integer = IIf(cpixsat - colorizeby.B < 0, 0, cpixsat - colorizeby.B)
                                     dgui.DrawRectangle(New Drawing.Pen(Drawing.Color.FromArgb(colorizered, colorizegreen, colorizeblue)), x, y, 1, 1)
-                                    dgui.DrawRectangle(New Drawing.Pen(Drawing.Color.FromArgb(255 - cpixsat, colorizeby)), x, y, 1, 1)
+                                dgui.DrawRectangle(New Drawing.Pen(Drawing.Color.FromArgb(255 - cpixsat - 0.2, colorizeby)), x, y, 1, 1)
 
 
-                                Else
+                            Else
                                     writecolor.SetPixel(x, y, Drawing.Color.FromArgb(255 - cpixsat, colorizeby))
                                 End If
 
@@ -1185,17 +1278,9 @@
                             End If
 
                     Case ColorChannels.rotateimage
-                        Dim floatsize As New Drawing.PointF(pictosplit.Width, pictosplit.Height)
-                        Dim center As New Drawing.Point(Convert.ToSingle(floatsize.X / 2), Convert.ToInt32(floatsize.Y / 2))
-                        writecolor.Dispose()
-                        writecolor = New Drawing.Bitmap(Convert.ToInt32(floatsize.X * 1.5), Convert.ToInt32(floatsize.Y * 1.5))
-                        dgui.Dispose()
-                        dgui = Drawing.Graphics.FromImage(writecolor)
 
-                        writecolor.MakeTransparent()
-                        dgui.TranslateTransform(writecolor.Width / 2, writecolor.Height / 2)
-                        dgui.RotateTransform(rotationdegree)
-                        dgui.DrawImage(pictosplit, New Drawing.Point(-1 * ((writecolor.Width / 2) - floatsize.X), -1 * ((writecolor.Height / 2) - floatsize.Y)))
+                        dgui.Transform.RotateAt(rotationdegree, New Drawing.Point(writecolor.Width / 2, writecolor.Height / 2), Drawing.Drawing2D.MatrixOrder.Append)
+                        dgui.DrawImage(pictosplit, New Drawing.PointF(0, 0))
 
                         y = pictosplit.Height
                         Exit For
@@ -1235,7 +1320,6 @@
 
                         End Try
 
-
                         x += maxskip
                     Case ColorChannels.scanlines
                         If usecoloralpha Then
@@ -1273,13 +1357,140 @@
                         x += gxp.Next(0, 2)
 
                     Case ColorChannels.fade
-                        Dim cxp As New Drawing.Drawing2D.LinearGradientBrush(New Drawing.PointF(0, 0), New Drawing.Point(writecolor.Width, writecolor.Height), Drawing.Color.FromArgb(255, 0, 0, 0), Drawing.Color.FromArgb(0, 0, 0, 0))
+                        Dim cxp As New Drawing.Drawing2D.LinearGradientBrush(New Drawing.PointF(0, 0), New Drawing.Point(writecolor.Width, writecolor.Height), Drawing.Color.White, Drawing.Color.Black)
+                        Dim overlay As New Drawing.Bitmap(writecolor.Width, writecolor.Height)
+                        Dim ograph As Drawing.Graphics = Drawing.Graphics.FromImage(overlay)
 
-                        dgui.DrawImage(pictosplit, New Drawing.PointF(0, 0))
-                        cxp.MultiplyTransform(dgui.Transform)
-                        dgui.FillRectangle(cxp, pictosplit.GetBounds(Drawing.GraphicsUnit.Pixel))
 
+
+                        overlay.Dispose()
+                        ograph.Dispose()
                         y = writecolor.Height
+                        Exit For
+
+                    Case ColorChannels.crosshatch
+                        If usecoloralpha Then
+                            imglist.Add(savename, Nothing)
+                            writecolor.Dispose()
+                            dgui.Dispose()
+                            Exit Sub
+                        End If
+                        Dim scv As Long = (writecolor.Height * writecolor.Width) / 10
+
+
+
+                        Dim overlayimage As New Drawing.Bitmap(writecolor.Width, writecolor.Height)
+                        Dim ggraph As Drawing.Graphics = Drawing.Graphics.FromImage(overlayimage)
+                        ggraph.FillRectangle(Drawing.Brushes.Black, New Drawing.Rectangle(0, 0, writecolor.Width, writecolor.Height))
+
+                        While scv > 0
+                            Dim pta As New Drawing.Point(txrand.Next(-10, writecolor.Width + 5), txrand.Next(-10, writecolor.Height + 5))
+                            Dim ptb As New Drawing.Point(txrand.Next(-10, writecolor.Width + 5), txrand.Next(-10, writecolor.Height + 5))
+                            Dim drawith As Drawing.Color = Nothing
+
+                            If txrand.Next(0, 10) Mod 2 = 0 Then
+                                drawith = Drawing.Color.FromArgb(2, Drawing.Color.White)
+
+                            End If
+
+                            ggraph.DrawLine(New Drawing.Pen(drawith, 5), pta, ptb)
+                            scv -= 1
+                        End While
+                        dgui.DrawImageUnscaled(pictosplit, New Drawing.Point(0, 0))
+                        For shorty As Integer = 0 To writecolor.Height - 1
+                            For shortx As Integer = 0 To writecolor.Width - 1
+                                Dim colorinc As Integer = 255 * 0.22
+                                Dim xpix As Drawing.Color = overlayimage.GetPixel(shortx, shorty)
+                                Dim apix As Drawing.Color = writecolor.GetPixel(shortx, shorty)
+                                Dim radj As Integer = IIf(apix.R + colorinc > 255, 255, apix.R + colorinc)
+                                Dim badj As Integer = IIf(apix.B + colorinc > 255, 255, apix.B + colorinc)
+                                Dim gadj As Integer = IIf(apix.G + colorinc > 255, 255, apix.G + colorinc)
+
+                                writecolor.SetPixel(shortx, shorty, Drawing.Color.FromArgb(xpix.R, radj, gadj, badj))
+                            Next
+                        Next
+                        ggraph.Dispose()
+                        overlayimage.Dispose()
+                        y = writecolor.Height
+                        Exit For
+                    Case ColorChannels.rotationblur
+                        If usecoloralpha Then
+                            imglist.Add(savename, Nothing)
+                            writecolor.Dispose()
+                            dgui.Dispose()
+                            Exit Sub
+                        End If
+                        dgui.DrawImageUnscaled(pictosplit, New Drawing.Point(0, 0))
+
+                        Dim grip As New Drawing.Bitmap(pictosplit.Width, pictosplit.Height)
+                        Dim gdraw As Drawing.Graphics = Drawing.Graphics.FromImage(grip)
+                        Dim centerImg As New Drawing.Point(pictosplit.Width / 2, pictosplit.Height / 2)
+                        grip.MakeTransparent()
+
+                        For yn As Integer = 0 To grip.Height - 1
+                            For xn As Integer = 0 To grip.Width - 1
+                                grip.SetPixel(xn, yn, Drawing.Color.FromArgb(20, pictosplit.GetPixel(xn, yn)))
+                            Next
+                        Next
+
+                        Dim rmath As New Random
+
+                        For xo As Integer = 1 To rotationblurpasses
+                            Dim ctrans As New Drawing.Drawing2D.Matrix
+                            ctrans.RotateAt(rmath.Next(0, rotationblurvariance), centerImg)
+                            dgui.Transform = ctrans
+                            dgui.DrawImageUnscaled(grip, New Drawing.Point(0, 0))
+                        Next
+
+                        grip.Dispose()
+                        gdraw.Dispose()
+                        y = writecolor.Height
+                        Exit For
+
+                    Case ColorChannels.pallette
+                        If usecoloralpha Then
+                            imglist.Add(savename, Nothing)
+                            writecolor.Dispose()
+                            dgui.Dispose()
+                            Exit Sub
+                        End If
+
+
+                        imglist.Add(savename, Nothing)
+                            writecolor.Dispose()
+                            dgui.Dispose()
+                            Exit Sub
+
+
+                        writecolor.Dispose()
+                        dgui.Dispose()
+                        Dim pallarray As New SortedList
+
+                        For ymin As Integer = 0 To pictosplit.Height - 1
+                            For xmin As Integer = 0 To pictosplit.Width - 1
+                                Dim cpixel As Drawing.Color = pictosplit.GetPixel(xmin, ymin)
+                                Dim cpixelasstring As String = "#" & IIf(Hex(cpixel.R).Count < 2, "0" & Hex(cpixel.R), Hex(cpixel.R)) & IIf(Hex(cpixel.G).Count < 2, "0" & Hex(cpixel.G), Hex(cpixel.G)) & IIf(Hex(cpixel.B).Count < 2, "0" & Hex(cpixel.B), Hex(cpixel.B))
+                                If Not pallarray.Contains(cpixelasstring) Then
+                                    pallarray.Add(cpixelasstring, New Object() {cpixel, 1})
+                                Else
+                                    pallarray(cpixelasstring)(1) += 1
+                                End If
+
+                            Next
+
+                        Next
+                        writecolor = New Drawing.Bitmap(100, pallarray.Count * 5 + 5)
+                        dgui = Drawing.Graphics.FromImage(writecolor)
+
+                        dgui.FillRectangle(Drawing.Brushes.White, 0, 0, writecolor.Width, writecolor.Height)
+
+                        For i As Integer = 0 To pallarray.Count - 1
+                            Dim rxp As Drawing.Color = pallarray.GetByIndex(i)(0)
+                            dgui.FillRectangle(New Drawing.SolidBrush(rxp), 0, i * 2, writecolor.Width, 2)
+                        Next
+
+                        dgui.DrawString("Pallette of " & savename, New Drawing.Font("tahoma", "14"), New Drawing.SolidBrush(Drawing.Color.Black), New Drawing.PointF(3, writecolor.Height - 3))
+                        y = pictosplit.Height
                         Exit For
 
                     Case Else
@@ -1313,6 +1524,7 @@
 
             End Try
             imglist.Add(savename, Nothing)
+            Console.WriteLine(savename & " not saved")
         End Try
 
     End Sub
