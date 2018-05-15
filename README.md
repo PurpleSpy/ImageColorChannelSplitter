@@ -6,9 +6,11 @@ ChannelSplit (options) (command modifers) arg1-argx
 
 [program options]
 
-Args may be individual image, files, argument files,directories or web url, zipfiles if chosen or individual files will be placed in the same folder as original image
+Args may be individual image, files,zip files, argument files,directories or web url, zipfiles if chosen or individual files will be placed in the same folder as original image
 
-Images that were downloaded from url and clipboard images will be saved to THISAPPLOCATION\imgdownloads
+If you specify a directory zip files will not be collected as part of the batch, zip files must be explicitly specified and then only JPG, PNG, BMP will be used from them
+
+Images that were downloaded from url, clipboard, and zip images will be saved to ThisAppLocation\imgdownloads
 
 -C Uses Image From clipboad
 
@@ -42,6 +44,8 @@ Images that were downloaded from url and clipboard images will be saved to THISA
 
 -f Instead of making a zipfile of all the channel images, copies them to the directory of original image instead
 
+-E makes a pallette of current image, output in html
+
 -h or -? or /h or /? shows this help page
 
 
@@ -70,6 +74,8 @@ Images that were downloaded from url and clipboard images will be saved to THISA
 
 -K adds an effect that looks like a frayed shirt
 
+-Z adds a crosshatch pattern to image
+
 
 
 ---ones that must be done alone
@@ -78,11 +84,17 @@ Images that were downloaded from url and clipboard images will be saved to THISA
 
 -n Draws a outline of image, threshold for brightness and pixel sample size must be set, because of how long it takes this option must be specifed alone
 
+-I adds rotation blur
+
 //future
 
 -R rotate image, currently buggy
 
 -D Gradient fade, buggy currently, unfinished
+
+-E makes a pallette of current image, output as image, says generic drawing surface error
+
+-P draws apixelation range on the image, can be set with one arg, currently draws large blobs or one color
 
 
 
@@ -104,6 +116,8 @@ C+/-#hexcode sets the hexcode used for colorshift function, may be positive or n
 
 o+/-100-0% sets level transparency of image
 
+px X is the range of pixelation on the x axis
+
 s100-0% sets scanline opacity
 
 SX sets to draw scanlines at every X rows
@@ -115,6 +129,10 @@ nX sets density of stippling, X is possible white space distance between pixels,
 hX sets the min threshold for option -G and -S, where X is 0-255
 
 HX sets the max threshold for option -G and -S, where X is 0-255
+
+z0 pulls up colorpicker to grab color for colorize
+
+Z0 pulls up colorpicker to grab color for colorshift
 
 [argument files]
 
