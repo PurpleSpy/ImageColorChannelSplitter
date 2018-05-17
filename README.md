@@ -16,7 +16,7 @@ Images that were downloaded from url, clipboard, and zip images will be saved to
 
 -M Uses a color matrix to do grayscale and rgb split, faster than other method
 
--a Copies the alpha channel as a grayscale image
+-a Copies the alpha channel as a grayscale image 
 
 -A Copies the alpha channel in the color of your choice as an image with transparency
 
@@ -84,6 +84,8 @@ Images that were downloaded from url, clipboard, and zip images will be saved to
 
 -n Draws a outline of image, threshold for brightness and pixel sample size must be set, because of how long it takes this option must be specifed alone
 
+-j adds distortion blur
+
 -I adds rotation blur
 
 //future
@@ -134,6 +136,24 @@ z0 pulls up colorpicker to grab color for colorize
 
 Z0 pulls up colorpicker to grab color for colorshift
 
+k0-100% opacity of the layers in rotational blur, usually smaller with more layers
+
+Kx X is the layers of the image built up during rotational blur, not unlike a double exposure of the same image, this is X exposures
+
+vx X is the variance of rotation in rotation blur, randomly images drawn between 0-X rotation
+
+Vx% is the x postion of the rotational blur pivot point, measured as x% of image width, example dead center is V50% y50%
+
+yx% is the y postion of the rotational blur pivot point, measured as y% of image height, example dead center is V50% y50%
+
+Yx X is the layers of the image built up during distortion blur, not unlike a double exposure of the same image, this is X exposures
+
+j0-100% opacity of the layers in distorion blur, usually smaller with more layers
+
+Jx X is the variance of pixeldraw in distortion blur, randomly images drawn between 0-X on the x and y axis
+
+
+
 [argument files]
 
 Argument files are just a list of files in a text file, so it would be file,url,or directory then return one per line, no options or command modifiers can be specified argument file
@@ -147,3 +167,5 @@ open new text then fill it with one arg per line, no options then save as with t
 [useage example]
 
 EX: ChannelSplit -AcR image.jpg "C:\imgdir" ...."
+
+ 
